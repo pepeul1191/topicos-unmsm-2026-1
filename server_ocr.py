@@ -22,9 +22,10 @@ class PlateOnlyServer:
         self.ocr_reader = easyocr.Reader(['es', 'en'], gpu=False)
         
         self.frame_counter = 0
-        self.process_every_n_frames = 3
+        self.process_every_n_frames = 10
         self.last_plate = None
         self.last_bbox = None
+        self.last_confidence = 0  # ⭐ Agregar variable para guardar confianza
         
         logger.info("✅ Modo: Solo texto grande de placa")
     
@@ -32,6 +33,33 @@ class PlateOnlyServer:
         frame_bytes = base64.b64decode(frame_data)
         nparr = np.frombuffer(frame_bytes, np.uint8)
         return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
+    def is_valid_car_plate(self, plate_text):
+        """
+        Valida placa de auto peruana
+        
+        Formatos aceptados (Post-2016):
+        - ABC-123 (tradicional)
+        - A1B-234 (mixto)
+        - 123-456 (numérico)
+        """
+        if not plate_text:
+            return False
+        
+        # Limpiar y convertir a mayúsculas
+        clean = re.sub(r'[^A-Z0-9]', '', plate_text.upper())
+        
+        # Debe tener 6 caracteres exactamente
+        if len(clean) != 6:
+            return False
+        
+        # Últimos 3 deben ser números
+        if not clean[3:].isdigit():
+            return False
+        
+        # Primeros 3 pueden ser cualquier caracter alfanumérico
+        # (no hay restricción adicional)
+        return True
     
     def encode_frame(self, img, quality=60):
         _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, quality])
@@ -53,7 +81,6 @@ class PlateOnlyServer:
         if not ocr_bbox:
             return None
         
-        # OCR devuelve: [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
         x_coords = [p[0] for p in ocr_bbox]
         y_coords = [p[1] for p in ocr_bbox]
         
@@ -70,15 +97,12 @@ class PlateOnlyServer:
         """
         filtered = []
         for (bbox, text, confidence) in ocr_results:
-            # Calcular altura del texto
             y_coords = [p[1] for p in bbox]
             height = max(y_coords) - min(y_coords)
             
-            # Solo texto con altura suficiente
             if height >= min_height:
                 clean = re.sub(r'[^A-Z0-9]', '', text.upper())
                 if len(clean) >= 3:
-                    # Convertir bbox a rectángulo
                     rect = self.convert_ocr_bbox_to_rectangle(bbox)
                     filtered.append((rect, clean, confidence, height))
         
@@ -93,13 +117,11 @@ class PlateOnlyServer:
         scale_x = w / small_img.shape[1]
         scale_y = h / small_img.shape[0]
         
-        # Preprocesar
         gray = cv2.cvtColor(small_img, cv2.COLOR_BGR2GRAY)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4,4))
         enhanced = clahe.apply(gray)
         _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
-        # OCR
         results = self.ocr_reader.readtext(
             binary,
             allowlist='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',
@@ -107,22 +129,18 @@ class PlateOnlyServer:
             detail=1
         )
         
-        # Filtrar solo texto grande
         large_texts = self.filter_large_text(results, min_height=25)
         
         if large_texts:
-            # Tomar el más grande (por altura)
             best = max(large_texts, key=lambda x: x[3])
             bbox_rect, text, confidence, height = best
             
-            # Escalar coordenadas al tamaño original
             x1, y1, x2, y2 = bbox_rect
             x1 = int(x1 * scale_x)
             y1 = int(y1 * scale_y)
             x2 = int(x2 * scale_x)
             y2 = int(y2 * scale_y)
             
-            # Formatear placa
             if len(text) == 6 and '-' not in text:
                 text = f"{text[:3]}-{text[3:]}"
             
@@ -171,30 +189,31 @@ class PlateOnlyServer:
         should_process = (self.frame_counter % self.process_every_n_frames == 0)
         
         if should_process:
-            # Intentar OCR primero (más preciso para texto)
+            # Intentar OCR primero
             plate_text, ocr_bbox, ocr_conf = self.extract_plate_text(img)
             
             if plate_text and ocr_bbox:
                 self.last_plate = plate_text
                 self.last_bbox = ocr_bbox
-                logger.info(f"🇵🇪 Placa: {plate_text} (conf: {ocr_conf:.2f})")
+                self.last_confidence = ocr_conf  # ⭐ Guardar la confianza
+                logger.info(f"🇵🇪 Placa: {plate_text} (conf: {ocr_conf:.2%})")
             else:
-                # Fallback: YOLO solo para ubicación
+                # Fallback con YOLO
                 yolo_box, yolo_conf = self.detect_with_yolo(img)
                 if yolo_box:
                     self.last_bbox = yolo_box
+                    self.last_confidence = yolo_conf  # ⭐ Guardar confianza de YOLO
                     logger.info(f"📍 Ubicación detectada (YOLO), esperando texto...")
         
-        # Dibujar resultado
+        # Dibujar resultado (opcional, puedes comentar si no quieres imagen)
         if self.last_bbox:
             x1, y1, x2, y2 = self.last_bbox
-            # Validar coordenadas
             if all(isinstance(v, int) for v in [x1, y1, x2, y2]):
                 cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 3)
                 
                 if self.last_plate:
-                    cv2.putText(annotated, self.last_plate, (x1, y1-10),
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                    cv2.putText(annotated, f"{self.last_plate} ({self.last_confidence:.2%})", 
+                               (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
                 else:
                     cv2.putText(annotated, "Leyendo placa...", (x1, y1-10),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
@@ -219,15 +238,31 @@ class PlateOnlyServer:
                         annotated = self.process_frame(frame)
                         result = self.encode_frame(annotated, quality=50)
                         
+                        # Inicializar respuesta por defecto
                         response = {
                             'type': 'detection',
-                            'image': result,
-                            'plate': self.last_plate,
+                            'plate': None,
+                            'ocr_conf': 0,
                             'process_time': round((time.time() - start) * 1000, 1)
                         }
                         
-                        await websocket.send(json.dumps(response))
-                    
+                        # Si hay placa y es válida, actualizar respuesta
+                        print('1 +++++++++++++++++++++++++++++++')
+                        print(self.last_plate)
+                        print('2 +++++++++++++++++++++++++++++++')
+                        if self.last_plate:
+                            if self.is_valid_car_plate(self.last_plate):
+                                print('3 +++++++++++++++++++++++++++++++')
+                                response['plate'] = self.last_plate
+                                response['ocr_conf'] = round(self.last_confidence, 3) if self.last_confidence else 0
+                                logger.info(f"✅ Enviando: {self.last_plate} (conf: {self.last_confidence:.2%})")
+                                # enviar respuesta (solo cuando hay placa)
+                                await websocket.send(json.dumps(response))
+                            else:
+                                logger.debug(f"❌ Placa inválida (formato): {self.last_plate}")
+                        else:
+                            logger.debug("🔍 Sin placa detectada")
+                        
                     elif data['type'] == 'ping':
                         await websocket.send(json.dumps({'type': 'pong'}))
                         
@@ -238,16 +273,15 @@ class PlateOnlyServer:
                     
         except websockets.exceptions.ConnectionClosed:
             logger.info("Cliente desconectado")
-
 async def main():
-    server = PlateOnlyServer(yolo_model_path='yolov8n.pt')
+    server = PlateOnlyServer(yolo_model_path='models/best_upeu_yolo12_100ep.pt')
     
     async with websockets.serve(server.handle_client, "0.0.0.0", 8765):
         logger.info("=" * 50)
-        logger.info("🎯 SERVIDOR CORREGIDO")
+        logger.info("🎯 SERVIDOR CORREGIDO - CON CONFIANZA")
         logger.info("=" * 50)
-        logger.info("✅ Conversión de coordenadas OCR -> rectángulo")
-        logger.info("✅ Validación de tipos antes de dibujar")
+        logger.info("✅ Incluye 'ocr_conf' en la respuesta")
+        logger.info("✅ Confianza formateada como porcentaje")
         logger.info("=" * 50)
         await asyncio.Future()
 

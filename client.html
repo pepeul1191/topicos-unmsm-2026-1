@@ -286,11 +286,13 @@
                 
                 if (data.type === 'detection') {
                     // Mostrar imagen procesada
+                    /*
                     const img = new Image();
                     img.onload = () => {
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     };
                     img.src = 'data:image/jpeg;base64,' + data.image;
+                    */
                     
                     // Mostrar texto de placa
                     if (data.detections && data.detections.length > 0 && data.detections[0].text) {
