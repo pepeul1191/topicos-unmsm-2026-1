@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Placas Perú - Modo Rápido</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        
+        .container {
+            max-width: 480px;
+            width: 100%;
+            background: #1a1a1a;
+            border-radius: 24px;
+            padding: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 1.4rem;
+        }
+        
+        .header p {
+            color: #888;
+            font-size: 0.75rem;
+        }
+        
+        .camera-box {
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+            position: relative;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin: 16px 0;
+        }
+        
+        button {
+            flex: 1;
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        button:active {
+            transform: scale(0.96);
+        }
+        
+        button:disabled {
+            background: #555;
+            opacity: 0.6;
+        }
+        
+        .info-panel {
+            background: #0a0a0a;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+        
+        .plate-display {
+            background: #000;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        
+        .plate-number {
+            font-family: 'Courier New', monospace;
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: #e94560;
+            letter-spacing: 2px;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: #888;
+        }
+        
+        .status {
+            padding: 4px 8px;
+            border-radius: 20px;
+            background: #1a1a1a;
+        }
+        
+        .badge {
+            background: #e94560;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+        }
+        
+        .guide {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #ffd700;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🇵🇪 Lector de Placas</h1>
+        <p>Modo rápido | Sin lag</p>
+    </div>
+    
+    <div class="camera-box">
+        <canvas id="canvas"></canvas>
+    </div>
+    
+    <div class="controls">
+        <button id="startBtn">📷 Iniciar</button>
+        <button id="stopBtn" disabled>⏹️ Detener</button>
+    </div>
+    
+    <div class="info-panel">
+        <div class="plate-display">
+            <div class="plate-number" id="plateText">———</div>
+        </div>
+        <div class="status-bar">
+            <span class="status" id="status">⚪ Desconectado</span>
+            <span class="badge" id="fps">📊 0 fps</span>
+            <span class="badge" id="latency">⚡ 0 ms</span>
+        </div>
+    </div>
+    
+    <div class="guide">
+        💡 Consejos para mejor rendimiento:<br>
+        • Buena iluminación<br>
+        • Placa a 20-30cm de distancia<br>
+        • Letras negras sobre fondo claro
+    </div>
+</div>
+
+<script>
+    // Elementos
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const plateTextSpan = document.getElementById('plateText');
+    const statusSpan = document.getElementById('status');
+    const fpsSpan = document.getElementById('fps');
+    const latencySpan = document.getElementById('latency');
+    
+    // Configuración
+    const WS_URL = `ws://${window.location.hostname}:8765`;
+    
+    // Estado
+    let stream = null;
+    let ws = null;
+    let isActive = false;
+    let video = null;
+    let frameInterval = null;
+    
+    // Métricas
+    let frameCount = 0;
+    let lastFpsTime = 0;
+    
+    canvas.width = 480;
+    canvas.height = 360;
+    
+    // Iniciar
+    async function start() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 480 },
+                    height: { ideal: 360 },
+                    facingMode: 'environment'
+                }
+            });
+            
+            video = document.createElement('video');
+            video.srcObject = stream;
+            video.playsInline = true;
+            await video.play();
+            
+            isActive = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            
+            connectWebSocket();
+            
+            // Capturar frames cada 50ms (20 fps)
+            frameInterval = setInterval(captureFrame, 50);
+            
+            statusSpan.innerHTML = '📡 Activo';
+            
+        } catch (err) {
+            console.error(err);
+            statusSpan.innerHTML = '❌ Error';
+            alert('No se pudo acceder a la cámara');
+        }
+    }
+    
+    // Capturar y enviar frame
+    function captureFrame() {
+        if (!isActive || !video || video.videoWidth === 0) return;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        
+        // Dibujar preview
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Capturar frame para enviar
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = video.videoWidth;
+        tempCanvas.height = video.videoHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(video, 0, 0);
+        
+        // Comprimir antes de enviar (70% calidad)
+        const base64 = tempCanvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+        
+        ws.send(JSON.stringify({
+            type: 'frame',
+            image: base64
+        }));
+        
+        // FPS
+        frameCount++;
+        const now = Date.now();
+        if (now - lastFpsTime >= 1000) {
+            fpsSpan.innerHTML = `📊 ${frameCount} fps`;
+            frameCount = 0;
+            lastFpsTime = now;
+        }
+    }
+    
+    // WebSocket
+    function connectWebSocket() {
+        if (ws) ws.close();
+        
+        ws = new WebSocket(WS_URL);
+        
+        ws.onopen = () => {
+            statusSpan.innerHTML = '✅ Conectado';
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'detection') {
+                    // Mostrar imagen procesada
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    };
+                    img.src = 'data:image/jpeg;base64,' + data.image;
+                    
+                    // Mostrar texto de placa
+                    if (data.detections && data.detections.length > 0 && data.detections[0].text) {
+                        plateTextSpan.innerHTML = data.detections[0].text;
+                    } else {
+                        plateTextSpan.innerHTML = '🔍 Buscando...';
+                    }
+                    
+                    // Latencia
+                    if (data.process_time) {
+                        latencySpan.innerHTML = `⚡ ${data.process_time} ms`;
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        
+        ws.onerror = () => {
+            statusSpan.innerHTML = '⚠️ Error';
+        };
+        
+        ws.onclose = () => {
+            if (isActive) {
+                statusSpan.innerHTML = '🔄 Reconectando...';
+                setTimeout(connectWebSocket, 2000);
+            } else {
+                statusSpan.innerHTML = '⚪ Desconectado';
+            }
+        };
+    }
+    
+    // Detener
+    function stop() {
+        isActive = false;
+        
+        if (frameInterval) clearInterval(frameInterval);
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        if (ws) ws.close();
+        
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        plateTextSpan.innerHTML = '———';
+        statusSpan.innerHTML = '⚪ Detenido';
+        fpsSpan.innerHTML = '📊 0 fps';
+        latencySpan.innerHTML = '⚡ 0 ms';
+    }
+    
+    startBtn.addEventListener('click', start);
+    stopBtn.addEventListener('click', stop);
+    
+    window.addEventListener('beforeunload', () => stop());
+    
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('🇵🇪 Presiona "Iniciar"', canvas.width/2, canvas.height/2);
+</script>
+</body>
+</html>

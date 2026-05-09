@@ -118,3 +118,6 @@ Instalar modelo
     sudo apt install mysql-client
     sudo apt install postgresql-client
     dbmate -d migrations -e DATABASE_URL up
+
+
+python -m http.server 8000
