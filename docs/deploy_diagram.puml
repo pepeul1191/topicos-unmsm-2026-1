@@ -1,0 +1,33 @@
+@startuml
+!define RECTANGLE class
+
+' --------------------------
+' Nodos (Dispositivos / Servidores)
+' --------------------------
+
+node "Celular Android" as Android {
+    [App Móvil \n(Flutter)]
+}
+
+node "Plate Detector" as Detector {
+    [YOLO Detector]
+    [WebSocket Server]
+}
+
+node "Servidor Admin" as AdminServer {
+    [Rails App]
+    database "SQLite3" as SQLite
+    database "LevelDB" as LevelDB
+}
+
+' --------------------------
+' Relaciones
+' --------------------------
+
+' Android consulta el Admin Server
+Android --> AdminServer : HTTP / REST API
+
+' Android envía video o frames al Detector
+Android --> Detector : WebSocket (video / frames)
+
+@enduml

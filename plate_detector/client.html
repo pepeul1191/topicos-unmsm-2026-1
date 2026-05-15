@@ -1,180 +1,128 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Placas Perú - Modo Rápido</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-            background: #0a0a0a;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 16px;
-        }
-        
-        .container {
-            max-width: 480px;
-            width: 100%;
-            background: #1a1a1a;
-            border-radius: 24px;
-            padding: 16px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 16px;
-        }
-        
-        .header h1 {
-            color: white;
-            font-size: 1.4rem;
-        }
-        
-        .header p {
-            color: #888;
-            font-size: 0.75rem;
-        }
-        
-        .camera-box {
-            background: #000;
-            border-radius: 16px;
-            overflow: hidden;
-            aspect-ratio: 4/3;
-            position: relative;
-        }
-        
-        canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-        
-        .controls {
-            display: flex;
-            gap: 12px;
-            margin: 16px 0;
-        }
-        
-        button {
-            flex: 1;
-            background: #e94560;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 40px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        button:active {
-            transform: scale(0.96);
-        }
-        
-        button:disabled {
-            background: #555;
-            opacity: 0.6;
-        }
-        
-        .info-panel {
-            background: #0a0a0a;
-            border-radius: 12px;
-            padding: 12px;
-            margin-top: 12px;
-        }
-        
-        .plate-display {
-            background: #000;
-            padding: 12px;
-            border-radius: 10px;
-            text-align: center;
-            margin-bottom: 8px;
-        }
-        
-        .plate-number {
-            font-family: 'Courier New', monospace;
-            font-size: 1.6rem;
-            font-weight: bold;
-            color: #e94560;
-            letter-spacing: 2px;
-        }
-        
-        .status-bar {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.7rem;
-            color: #888;
-        }
-        
-        .status {
-            padding: 4px 8px;
-            border-radius: 20px;
-            background: #1a1a1a;
-        }
-        
-        .badge {
-            background: #e94560;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-        }
-        
-        .guide {
-            text-align: center;
-            font-size: 0.7rem;
-            color: #ffd700;
-            margin-top: 12px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Placas Perú - Bootstrap</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: #0a0a0a;
+    }
+
+    .app-container {
+      background: #1a1a1a;
+      border-radius: 24px;
+      padding: 16px;
+      color: white;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .camera-box {
+      background: #000;
+      border-radius: 16px;
+      aspect-ratio: 4/3;
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .plate-number {
+      font-family: monospace;
+      font-size: 1.6rem;
+      font-weight: bold;
+      color: #e94560;
+      letter-spacing: 2px;
+    }
+
+    .status {
+      font-size: 0.75rem;
+      background: #222;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    .badge-custom {
+      background: #e94560;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+    }
+
+    .guide {
+      font-size: 0.75rem;
+      color: #ffd700;
+      text-align: center;
+    }
+  </style>
 </head>
+
 <body>
-<div class="container">
-    <div class="header">
-        <h1>🇵🇪 Lector de Placas</h1>
-        <p>Modo rápido | Sin lag</p>
-    </div>
-    
-    <div class="camera-box">
-        <canvas id="canvas"></canvas>
-    </div>
-    
-    <div class="controls">
-        <button id="startBtn">📷 Iniciar</button>
-        <button id="stopBtn" disabled>⏹️ Detener</button>
-    </div>
-    
-    <div class="info-panel">
-        <div class="plate-display">
-            <div class="plate-number" id="plateText">———</div>
+
+<div class="container-fluid py-4">
+  <div class="row g-3">
+
+    <!-- COLUMNA IZQUIERDA -->
+    <div class="col-md-6">
+      <div class="app-container">
+
+        <div class="text-center mb-3">
+          <h4 class="mb-0">🇵🇪 Lector de Placas</h4>
+          <small class="text-secondary">Modo rápido | Sin lag</small>
         </div>
-        <div class="status-bar">
-            <span class="status" id="status">⚪ Desconectado</span>
-            <span class="badge" id="fps">📊 0 fps</span>
-            <span class="badge" id="latency">⚡ 0 ms</span>
+
+        <div class="camera-box mb-3">
+          <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="d-flex gap-2 mb-3">
+          <button id="startBtn" class="btn btn-danger w-100">📷 Iniciar</button>
+          <button id="stopBtn" class="btn btn-secondary w-100" disabled>⏹️ Detener</button>
+        </div>
+
+        <div class="bg-black p-3 rounded mb-3 text-center">
+          <div class="plate-number" id="plateText">———</div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span class="status" id="status">⚪ Desconectado</span>
+          <span class="badge-custom" id="fps">📊 0 fps</span>
+          <span class="badge-custom" id="latency">⚡ 0 ms</span>
+        </div>
+
+        <div class="guide">
+          💡 Consejos para mejor rendimiento:<br>
+          • Buena iluminación<br>
+          • 20-30cm de distancia<br>
+          • Fondo claro
+        </div>
+
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA (VACÍA) -->
+    <div class="col-md-6">
+      <div class="app-container">
+
+        <div class="text-center mb-3">
+          <h4 class="mb-0">Datos del Vehículo</h4>
+        </div>
+
+        <div class="camera-box mb-3" id="car-info">
         </div>
     </div>
-    
-    <div class="guide">
-        💡 Consejos para mejor rendimiento:<br>
-        • Buena iluminación<br>
-        • Placa a 20-30cm de distancia<br>
-        • Letras negras sobre fondo claro
-    </div>
+
+  </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     // Elementos
     const canvas = document.getElementById('canvas');
@@ -195,6 +143,9 @@
     let isActive = false;
     let video = null;
     let frameInterval = null;
+
+    let lastPlate = null;
+    let plateLock = false;
     
     // Métricas
     let frameCount = 0;
@@ -202,7 +153,51 @@
     
     canvas.width = 480;
     canvas.height = 360;
-    
+
+    async function buscarPlaca(placa) {
+        const url = `http://localhost:4567/${placa}`;
+
+        const container = document.getElementById("car-info");
+
+        container.innerHTML = `<div class="text-white p-3">Consultando...</div>`;
+
+        try {
+            const res = await fetch(url);
+
+            const data = await res.json();
+
+            if (res.ok) {
+            const v = data.value;
+
+            container.innerHTML = `
+                <div class="p-3 text-light">
+                <h5 class="mb-2 text-success">✔ Vehículo encontrado</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item bg-dark text-light">Placa: <b>${data.key}</b></li>
+                    <li class="list-group-item bg-dark text-light">Marca: ${v.marca}</li>
+                    <li class="list-group-item bg-dark text-light">Modelo: ${v.modelo}</li>
+                    <li class="list-group-item bg-dark text-light">Color: ${v.color}</li>
+                    <li class="list-group-item bg-dark text-light">Año: ${v.anio}</li>
+                </ul>
+                </div>
+            `;
+            } else {
+            container.innerHTML = `
+                <div class="p-3 text-danger">
+                ❌ ${data.error || "Error desconocido"}
+                </div>
+            `;
+            }
+
+        } catch (err) {
+            container.innerHTML = `
+            <div class="p-3 text-warning">
+                ⚠ Error de conexión con el servidor
+            </div>
+            `;
+        }
+    }
+            
     // Iniciar
     async function start() {
         try {
@@ -269,7 +264,7 @@
             lastFpsTime = now;
         }
     }
-    
+
     // WebSocket
     function connectWebSocket() {
         if (ws) ws.close();
@@ -283,29 +278,36 @@
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                
+
                 if (data.type === 'detection') {
-                    // Mostrar imagen procesada
-                    /*
-                    const img = new Image();
-                    img.onload = () => {
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    };
-                    img.src = 'data:image/jpeg;base64,' + data.image;
-                    */
-                    
-                    // Mostrar texto de placa
-                    if (data.detections && data.detections.length > 0 && data.detections[0].text) {
-                        plateTextSpan.innerHTML = data.detections[0].text;
+
+                    if (data.plate) {
+
+                        plateTextSpan.innerHTML = data.plate;
+
+                        // 🚨 SOLO UNA VEZ POR PLACA
+                        if (data.plate !== lastPlate && !plateLock) {
+
+                            lastPlate = data.plate;
+                            plateLock = true;
+
+                            buscarPlaca(data.plate);
+
+                            // desbloquear después de X segundos
+                            setTimeout(() => {
+                                plateLock = false;
+                            }, 5000); // evita spam por 5 segundos
+                        }
+
                     } else {
                         plateTextSpan.innerHTML = '🔍 Buscando...';
                     }
-                    
-                    // Latencia
+
                     if (data.process_time) {
                         latencySpan.innerHTML = `⚡ ${data.process_time} ms`;
                     }
                 }
+
             } catch (e) {
                 console.error(e);
             }
