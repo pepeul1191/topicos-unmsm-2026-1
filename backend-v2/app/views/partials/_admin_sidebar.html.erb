@@ -1,0 +1,33 @@
+<div class="sidebar bg-primary text-white">
+  <div class="sidebar-header">
+    <h3 class="d-flex align-items-center mb-0">
+      <img src="<%= assets_path %>/img/logo-contrast.png" height="37" width="190" alt="" class="icon">
+    </h3>
+  </div>
+  <hr>
+  <ul class="nav flex-column">
+    <li class="nav-item">
+      <a class="nav-link <%= 'active' if @nav_link == 'home' %>" href="/">
+        <i class="fa fa-home me-2"></i> Inicio
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link <%= 'active' if @nav_link == 'cars-management' %>" href="/cars">
+        <i class="fa fa-car me-2"></i> Gestión de Carros
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link <%= 'active' if @nav_link == 'etl-process' %>" href="/etl-executions">
+        <i class="fa fa-database me-2"></i> Proceso ETL
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link <%= 'active' if @nav_link == 'yolo-test' %>" href="/etl">
+        <i class="fa fa-eye me-2"></i> YOLO Test
+      </a>
+    </li>
+  </ul>
+</div>

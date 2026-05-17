@@ -1,0 +1,307 @@
+<main class="main-content">
+
+  <div class="container-fluid px-4">
+
+    <!-- HERO MEJORADO -->
+    <div class="card mb-4 shadow-lg border-0 overflow-hidden">
+      <div class="card-body text-center py-5 px-4" style="background: linear-gradient(135deg, #621518 0%, #8B1E24 100%);">
+        <div class="mb-4">
+          <i class="fa fa-car fa-3x text-white mb-3"></i>
+          <i class="fa fa-microchip fa-3x text-white mx-2"></i>
+          <i class="fa fa-database fa-3x text-white"></i>
+        </div>
+        <h1 class="display-5 fw-bold text-white mb-3">
+          Sistema Inteligente de Reconocimiento Vehicular
+        </h1>
+        <p class="lead text-white-50 mb-3">
+          Curso: Tópicos Avanzados de Computación
+        </p>
+        <p class="text-white-50 mb-4 mx-auto" style="max-width: 700px;">
+          Sistema distribuido que integra una <strong class="text-white">aplicación móvil</strong> para captura de imágenes,
+          un modelo <strong class="text-white">YOLO</strong> para detección de placas, un proceso <strong class="text-white">ETL</strong> y
+          almacenamiento en <strong class="text-white">LevelDB</strong> consultado vía <strong class="text-white">Rails API</strong>.
+        </p>
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+          <span class="badge bg-white text-dark px-3 py-2 rounded-pill"><i class="fa fa-mobile me-1"></i> Mobile App</span>
+          <span class="badge" style="background-color: #c0a92b; color: #000;" class="px-3 py-2 rounded-pill"><i class="fa fa-eye me-1"></i> YOLO Detection</span>
+          <span class="badge bg-success px-3 py-2 rounded-pill"><i class="fa fa-exchange me-1"></i> ETL Pipeline</span>
+          <span class="badge bg-warning text-dark px-3 py-2 rounded-pill"><i class="fa fa-database me-1"></i> LevelDB</span>
+          <span class="badge bg-info text-dark px-3 py-2 rounded-pill"><i class="fa fa-code me-1"></i> Rails API</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLUJO DEL SISTEMA CON WEBSOCKETS -->
+    <div class="card mb-4 shadow-sm border-0">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <h5 class="mb-0 fw-bold">
+          <i class="fa fa-project-diagram text-primary me-2" style="color: #621518 !important;"></i>
+          Flujo del Sistema Distribuido
+        </h5>
+        <p class="text-muted small mt-2 mb-0">Comunicación en tiempo real vía WebSockets</p>
+      </div>
+
+      <div class="card-body p-4">
+
+        <div class="row g-3 text-center">
+
+          <div class="col-md-3">
+            <div class="p-3 border rounded-3 h-100 bg-light">
+              <div class="text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 50px; height: 50px; background-color: #621518;">
+                <i class="fa fa-mobile fa-xl"></i>
+              </div>
+              <h6 class="fw-bold">1. App Móvil</h6>
+              <p class="small text-muted mb-0">
+                Captura imágenes de vehículos en campo o tiempo real.
+              </p>
+              <span class="badge mt-2" style="background-color: #c0a92b; color: #000; font-size: 0.7rem;">
+                <i class="fa fa-plug"></i> Cliente WebSocket
+              </span>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="p-3 border rounded-3 h-100 bg-light">
+              <div class="bg-info text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 50px; height: 50px;">
+                <i class="fa fa-exchange"></i>
+              </div>
+              <h6 class="fw-bold">2. WebSocket</h6>
+              <p class="small text-muted mb-0">
+                Comunicación bidireccional en tiempo real.
+              </p>
+              <span class="badge mt-2 bg-secondary" style="font-size: 0.7rem;">
+                <i class="fa fa-bolt"></i> Conexión persistente
+              </span>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="p-3 border rounded-3 h-100 bg-light">
+              <div class="text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background-color: #c0a92b; width: 50px; height: 50px;">
+                <i class="fa fa-eye"></i>
+              </div>
+              <h6 class="fw-bold">3. YOLO</h6>
+              <p class="small text-muted mb-0">
+                Modelo detecta y extrae la placa en tiempo real.
+              </p>
+              <span class="badge mt-2" style="background-color: #c0a92b; color: #000; font-size: 0.7rem;">
+                <i class="fa fa-microchip"></i> Procesamiento
+              </span>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="p-3 border rounded-3 h-100 bg-light">
+              <div class="bg-warning text-dark rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 50px; height: 50px;">
+                <i class="fa fa-database"></i>
+              </div>
+              <h6 class="fw-bold">4. ETL + LevelDB</h6>
+              <p class="small text-muted mb-0">
+                Almacenamiento Key-Value y respuesta inmediata.
+              </p>
+              <span class="badge mt-2 bg-success" style="font-size: 0.7rem;">
+                <i class="fa fa-check-circle"></i> Respuesta en tiempo real
+              </span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Indicador WebSocket -->
+        <div class="alert mt-4 mb-0" style="background-color: #f8f9fa; border-left: 4px solid #621518;">
+          <div class="d-flex align-items-center justify-content-between flex-wrap">
+            <div>
+              <i class="fa fa-plug text-primary" style="color: #621518 !important;"></i>
+              <strong class="ms-2">Comunicación WebSocket</strong>
+              <small class="text-muted d-block mt-1">La app móvil mantiene conexión persistente con YOLO para procesamiento en tiempo real</small>
+            </div>
+            <span class="badge bg-success">
+              <i class="fa fa-circle"></i> Conexión activa
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ARQUITECTURA GENERAL CON WEBSOCKETS -->
+    <div class="card mb-4 shadow-sm border-0">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <h5 class="mb-0 fw-bold">
+          <i class="fa fa-sitemap me-2" style="color: #621518 !important;"></i>
+          Arquitectura General
+        </h5>
+        <p class="text-muted small mt-2 mb-0">Componentes clave del sistema distribuido</p>
+      </div>
+
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-md-6 col-lg-4">
+            <div class="d-flex align-items-start p-3 bg-light rounded-3 h-100">
+              <i class="fa fa-mobile fa-2x me-3" style="color: #621518;"></i>
+              <div>
+                <strong class="d-block mb-1">Aplicación Móvil</strong>
+                <small class="text-muted">Cliente WebSocket que envía frames y recibe detecciones.</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="d-flex align-items-start p-3 bg-light rounded-3 h-100">
+              <i class="fa fa-plug fa-2x me-3" style="color: #c0a92b;"></i>
+              <div>
+                <strong class="d-block mb-1">WebSocket Server</strong>
+                <small class="text-muted">Maneja conexiones persistentes y broadcasting.</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="d-flex align-items-start p-3 bg-light rounded-3 h-100">
+              <i class="fa fa-eye fa-2x me-3" style="color: #c0a92b;"></i>
+              <div>
+                <strong class="d-block mb-1">Modelo YOLO</strong>
+                <small class="text-muted">Procesa frames vía WebSocket y detecta placas.</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="d-flex align-items-start p-3 bg-light rounded-3 h-100">
+              <i class="fa fa-code fa-2x me-3 text-info"></i>
+              <div>
+                <strong class="d-block mb-1">API Rails</strong>
+                <small class="text-muted">Recibe datos procesados y coordina el flujo.</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="d-flex align-items-start p-3 bg-light rounded-3 h-100">
+              <i class="fa fa-exchange fa-2x me-3 text-warning"></i>
+              <div>
+                <strong class="d-block mb-1">Proceso ETL</strong>
+                <small class="text-muted">Transforma datos relacionales a Key-Value.</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="d-flex align-items-start p-3 bg-light rounded-3 h-100">
+              <i class="fa fa-database fa-2x me-3 text-secondary"></i>
+              <div>
+                <strong class="d-block mb-1">LevelDB</strong>
+                <small class="text-muted">Almacenamiento rápido con clave = placa.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMUNICACIÓN WEBSOCKET DETALLADA -->
+    <div class="card mb-4 shadow-sm border-0">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <h5 class="mb-0 fw-bold">
+          <i class="fa fa-plug me-2" style="color: #c0a92b;"></i>
+          Comunicación YOLO ↔ App Móvil con WebSockets
+        </h5>
+        <p class="text-muted small mt-2 mb-0">Flujo de datos en tiempo real</p>
+      </div>
+
+      <div class="card-body p-4">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="bg-light p-3 rounded-3 mb-3">
+              <h6 class="fw-bold mb-3"><i class="fa fa-arrow-up text-primary"></i> App Móvil → YOLO</h6>
+              <pre class="bg-dark text-light p-3 rounded small" style="font-size: 0.8rem;">
+{
+  "type": "frame",
+  "data": "base64_encoded_image",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "device_id": "mobile_001"
+}</pre>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="bg-light p-3 rounded-3 mb-3">
+              <h6 class="fw-bold mb-3"><i class="fa fa-arrow-down text-success"></i> YOLO → App Móvil</h6>
+              <pre class="bg-dark text-light p-3 rounded small" style="font-size: 0.8rem;">
+{
+  "type": "detection",
+  "plate": "ABC123",
+  "confidence": 0.95,
+  "bbox": [x, y, w, h],
+  "timestamp": "2024-01-15T10:30:01Z"
+}</pre>
+            </div>
+          </div>
+        </div>
+        
+        <div class="alert" style="background-color: #f8f9fa; border-left: 4px solid #c0a92b;">
+          <i class="fa fa-bolt" style="color: #c0a92b;"></i>
+          <strong>Beneficios del WebSocket:</strong>
+          <ul class="mt-2 mb-0 small">
+            <li>✓ Latencia reducida para detección en tiempo real</li>
+            <li>✓ Comunicación bidireccional sin polling HTTP</li>
+            <li>✓ Procesamiento continuo de frames de video</li>
+            <li>✓ Feedback inmediato al usuario móvil</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODELO KEY VALUE MEJORADO -->
+    <div class="card mb-4 shadow-sm border-0">
+      <div class="card-header bg-white border-0 pt-4 px-4">
+        <h5 class="mb-0 fw-bold">
+          <i class="fa fa-key me-2" style="color: #621518 !important;"></i>
+          Modelo de Datos en LevelDB
+        </h5>
+        <p class="text-muted small mt-2 mb-0">Estructura Key-Value para almacenamiento eficiente</p>
+      </div>
+
+      <div class="card-body p-4">
+        <div class="bg-dark text-light p-4 rounded-3">
+          <div class="mb-2">
+            <span class="badge" style="background-color: #c0a92b; color: #000;">KEY</span>
+            <code class="text-warning ms-2">"ABC123"</code>
+          </div>
+          <div class="ms-3">
+            <i class="fa fa-arrow-right text-info me-2"></i>
+            <span class="badge bg-info text-dark mb-2">VALUE</span>
+            <pre class="text-light bg-transparent border-0 p-0 mt-2 mb-0" style="font-size: 0.9rem;">
+{
+  <span class="text-info">owner</span>: "Juan Pérez",
+  <span class="text-info">brand</span>: "Toyota",
+  <span class="text-info">model</span>: "Corolla",
+  <span class="text-info">color</span>: "Rojo",
+  <span class="text-info">year</span>: 2020,
+  <span class="text-info">last_detection</span>: "2024-01-15T10:30:01Z",
+  <span class="text-info">technical_reviews</span>: [...],
+  <span class="text-info">complains</span>: [...],
+  <span class="text-info">infractions</span>: [...]
+}
+            </pre>
+          </div>
+        </div>
+        <div class="alert mt-3 mb-0" style="background-color: #f8f9fa; border-left: 4px solid #621518;">
+          <i class="fa fa-info-circle" style="color: #621518;"></i>
+          <small>Consulta directa por placa: <code class="bg-white px-2 py-1 rounded">GET /api/vehicles/ABC123</code></small>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTONES MEJORADOS -->
+    <div class="text-center mb-5">
+      <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <a href="/cars" class="btn btn-primary btn-lg px-4 rounded-pill shadow-sm" style="background-color: #621518; border-color: #621518;">
+          <i class="fa fa-car me-2"></i>Gestión de Vehículos
+        </a>
+        <a href="/etl" class="btn btn-lg px-4 rounded-pill" style="background-color: #c0a92b; color: #000; border-color: #c0a92b;">
+          <i class="fa fa-cogs me-2"></i>Proceso de ETL
+        </a>
+        <a href="/websocket/docs" class="btn btn-outline-secondary btn-lg px-4 rounded-pill">
+          <i class="fa fa-plug me-2"></i>WebSocket API
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+</main>

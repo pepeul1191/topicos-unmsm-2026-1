@@ -1,0 +1,88 @@
+body.dashboard-layout {
+  padding-top: 56px;
+}
+
+.sidebar {
+  width: 250px;
+  height: 100vh;
+  position: fixed;
+  top: 56px;
+  left: 0;
+  transition: all 0.3s;
+  z-index: 10;
+  background-color: var(--bs-primary) !important;
+}
+
+.sidebar-header h3{
+  font-size: 20px;
+  margin-left: 15px;
+  margin-top: 20px;
+  padding-bottom: 0px;
+}
+
+.sidebar.collapsed {
+  transform: translateX(-250px);
+}
+
+.content-wrapper {
+  margin-left: 250px;
+  padding: 20px;
+  transition: all 0.3s;
+}
+
+.sidebar.collapsed ~ .content-wrapper {
+  margin-left: 0;
+}
+
+/* footer */
+
+body {
+  padding-bottom: 60px; /* Espacio para el footer fijo */
+}
+.fixed-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-250px);
+  }
+  
+  .sidebar.show {
+    transform: translateX(0);
+  }
+  
+  .content-wrapper {
+    margin-left: 0;
+  }
+}
+
+/* En tu archivo dashboard.css o styles.css */
+.sidebar .nav-link.active {
+  background-color: white !important;
+  color: black !important;
+  /*font-weight: bold;*/
+}
+
+/* Opcional: Efecto hover */
+.sidebar .nav-link:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link{
+  color: #FFF;
+}
+
+.nav-link:hover{
+  background-color: #dadada !important;
+  color: #343434;
+}
+
+/* formularios */
+
+h2 a {
+  text-decoration: none;
+}

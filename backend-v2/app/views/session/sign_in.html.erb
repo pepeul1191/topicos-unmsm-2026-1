@@ -1,0 +1,70 @@
+<%# app/views/sessions/sign_in.html.erb %>
+<% content_for :title do %>Iniciar Sesión | TicketMaster<% end %>
+
+<% content_for :extra_css do %>
+  <style>
+    .auth-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #f8f9fa;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .icon{
+      margin-bottom: 30px;
+    }
+  </style>
+<% end %>
+
+<div class="auth-wrapper">
+  <div class="auth-card card shadow-sm">
+    <div class="card-body p-4">
+      <div class="text-center mb-4">
+        <img src="<%= assets_path %>/img/logo-letters.png"  height="125" width="340" alt="" class="icon">
+        <p class="text-muted">Ingresa tus credenciales para acceder al sistema</p>
+      </div>
+      <!-- Incluir partial de flash messages -->
+      <%= render 'partials/flash_messages' %>
+
+      <form method="post" action="<%= sign_in_path %>">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+        
+        <div class="mb-3">
+          <label for="username" class="form-label">Usuario</label>
+          <input type="text" name="username" id="username" 
+                 class="form-control" required autofocus>
+        </div>
+        
+        <div class="mb-3">
+          <label for="password" class="form-label">Contraseña</label>
+          <input type="password" name="password" id="password" 
+                 class="form-control" required>
+        </div>
+        
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fa fa-sign-in me-1"></i> Ingresar
+          </button>
+          <a href="/auth/google_oauth2" class="btn btn-success">
+            <i class="fa fa-google me-1"></i> Ingresar con Google
+          </a>
+        </div>
+      </form>
+
+      <div class="text-center mt-3">
+        <a href="<%= reset_password_path %>" class="text-decoration-none">
+          ¿Olvidaste tu contraseña? 
+        </a>
+        <br>
+        <a href="<%= sign_up_path %>" class="text-decoration-none">
+          ¿Deseas crear una cuenta? 
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

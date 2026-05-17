@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+  <link rel="icon" href="<%= assets_path %>icon.png" type="image/png">
+  <title><%= content_for?(:title) ? yield(:title) : 'Mi Dashboard' %></title>
+  <link rel="stylesheet" href="<%= assets_path %>/dist/vendor.min.css">
+  <!-- Estilos personalizados -->  
+  <%= yield :extra_css %>
+</head>
+
+<body>
+  <%= yield %>
+  
+  <script src="<%= assets_path %>/dist/vendor.js"></script>
+  <script src="<%= assets_path %>/js/app.js"></script>
+  <%= yield :extra_js %>
+</body>
+</html>

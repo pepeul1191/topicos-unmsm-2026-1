@@ -1,0 +1,59 @@
+<main class="main-content">
+  <div class="container-fluid">
+
+    <h3 class="mb-4">
+      <a href="/cars/<%= @car_id %>/edit">
+        <i class="fa fa-arrow-left me-2"></i>Volver al Carro
+      </a>
+      / Editar Queja
+    </h3>
+
+    <%= render 'partials/flash_messages' %>
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <h6 class="mb-0">
+          <i class="fa fa-edit me-2"></i>
+          Editar Queja #<%= @complain.id %>
+        </h6>
+      </div>
+
+      <div class="card-body">
+
+        <form action="/cars/<%= @car_id %>/complains/<%= @complain.id %>" method="POST">
+
+          <input type="hidden" name="_method" value="PUT">
+          <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+          <input type="hidden" name="car_id" value="<%= @car_id %>">
+
+          <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <textarea name="description" class="form-control" rows="4" required>
+              <%= @complain.description %>
+            </textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Fecha</label>
+            <input type="datetime-local"
+                   name="created"
+                   class="form-control"
+                   value="<%= @complain.created&.strftime('%Y-%m-%dT%H:%M') %>"
+                   required>
+          </div>
+
+          <button class="btn btn-success">
+            <i class="fa fa-save me-2"></i>Actualizar
+          </button>
+
+          <a href="/cars/<%= @car_id %>/edit" class="btn btn-warning ms-2">
+            Cancelar
+          </a>
+
+        </form>
+
+      </div>
+    </div>
+
+  </div>
+</main>

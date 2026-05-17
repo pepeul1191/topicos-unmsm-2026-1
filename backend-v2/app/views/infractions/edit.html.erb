@@ -1,0 +1,31 @@
+<main class="main-content">
+  <div class="container-fluid">
+
+    <h3>Editar Infracción</h3>
+
+    <form action="/cars/<%= @car_id %>/infractions/<%= @infraction.id %>" method="POST">
+
+      <input type="hidden" name="_method" value="PUT">
+      <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+      <input type="hidden" name="car_id" value="<%= @car_id %>">
+
+      <div class="mb-3">
+        <label>Descripción</label>
+        <textarea name="description" class="form-control"><%= @infraction.description %></textarea>
+      </div>
+
+      <div class="mb-3">
+        <label>Fecha</label>
+        <input type="datetime-local"
+               name="created"
+               class="form-control"
+               value="<%= @infraction.created&.strftime('%Y-%m-%dT%H:%M') %>">
+      </div>
+
+      <button class="btn btn-success">Actualizar</button>
+      <a href="/cars/<%= @car_id %>/edit" class="btn btn-warning">Cancelar</a>
+
+    </form>
+
+  </div>
+</main>

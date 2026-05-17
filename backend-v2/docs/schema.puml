@@ -1,0 +1,53 @@
+@startuml
+!define table(name) class name << (T,#FFAAAA) >>
+!define primary_key(x) <b><u>x</u></b>
+!define foreign_key(x) <color:blue><u>x</u></color>
+
+table(cars) {
+  * primary_key(id) : INT
+  --
+  owner: VARCHAR(40)
+  branch: VARCHAR(30)
+  model : VARCHAR(30)
+  color : VARCHAR(12)
+  frabricated : INT
+  plate: VARCHAR(7)
+}
+
+table(technical_reviews) {
+  * primary_key(id) : INT
+  --
+  description: TEXT
+  created: DATE
+  car_id : INT
+}
+
+table(infractions) {
+  * primary_key(id) : INT
+  --
+  description: TEXT
+  created: DATE
+  car_id : INT
+}
+
+table(complains) {
+  * primary_key(id) : INT
+  --
+  description: TEXT
+  created: DATE
+  car_id : INT
+}
+
+table(etl_executions) {
+  * primary_key(id) : INT
+  --
+  description: TEXT
+  succeded: BOOLEAN
+  created: DATE
+}
+
+cars ||--o{ technical_reviews
+cars ||--o{ infractions
+cars ||--o{ complains
+
+@enduml

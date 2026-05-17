@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="<%= assets_path %>/icon.png" type="image/png">
+  <title><%= content_for?(:title) ? yield(:title) : 'Mi Dashboard' %></title>
+  <link rel="stylesheet" href="<%= assets_path %>/dist/simplemde.min.css">
+  <link rel="stylesheet" href="<%= assets_path %>/dist/vendor.min.css">
+  <link rel="stylesheet" href="<%= assets_path %>/dist/app.min.css">
+  <!-- Estilos personalizados -->
+  <script>
+    const URLS = {
+      BASE: "<%= ENV['BASE_URL'] %>",
+      FILES: "<%= ENV['URL_FILES_SERVICE'] %>",
+    }
+  </script>
+  <%= yield :extra_css %>
+</head>
+
+<body class="dashboard-layout">
+  <div class="wrapper">
+    <!-- Navbar Partial -->
+    <%= render 'partials/navbar' %>
+
+    <!-- Sidebar Partial -->
+    <% if session[:roles]&.include?('admin') %>
+      <%= render 'partials/admin_sidebar' %>
+    <% else %>
+      <%= render 'partials/sidebar' %>
+    <% end %>
+
+    <!-- Content Wrapper -->
+    <div class="content-wrapper">
+      <%= yield %>
+    </div>
+  </div>
+
+  <!-- Footer fijo -->
+  <footer class="fixed-footer py-2 border-top">
+    <div class="container-fluid">
+      <div class="pull-right text-muted small">
+        Desarrollado por 
+        <a href="https://www.ulima.edu.pe/centros-e-institutos/innova-ul" target="_blank" class="text-decoration-none">
+          Centro de Emprendimiento ULIMA
+        </a>
+      </div>
+    </div>
+  </footer>
+  <!-- Bootstrap JS -->
+  <script src="<%= assets_path %>/dist/simplemde.min.js"></script>
+  <script src="<%= assets_path %>/dist/vendor.js"></script>
+  <script src="<%= assets_path %>/dist/app.min.js"></script>
+  <%= yield :extra_js %>
+</body>
+</html>

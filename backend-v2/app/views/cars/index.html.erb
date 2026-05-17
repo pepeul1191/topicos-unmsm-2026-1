@@ -1,0 +1,238 @@
+<main class="main-content">
+  <div class="container-fluid">
+
+    <h3 class="mb-4">
+      <a href="/cars">
+        <i class="fa fa-car me-2"></i>Gestión de Vehículos
+      </a> / Lista de Carros
+    </h3>
+
+    <!-- Flash Messages -->
+    <% if flash[:notice] %>
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <%= flash[:notice] %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% end %>
+
+    <% if flash[:alert] %>
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <%= flash[:alert] %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% end %>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h6 class="mb-0">
+          <i class="fa fa-filter me-2"></i>
+          Filtros de Búsqueda
+        </h6>
+      </div>
+
+      <div class="card-body">
+        <form method="GET" action="/cars">
+          <input type="hidden" name="per_page" value="<%= @pagination[:per_page] %>">
+
+          <div class="row mb-3">
+
+            <div class="col-md-4">
+              <label class="form-label">Propietario</label>
+              <input type="text"
+                     name="owner"
+                     class="form-control"
+                     placeholder="Buscar por propietario"
+                     value="<%= params[:owner] %>">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Placa</label>
+              <input type="text"
+                     name="plate"
+                     class="form-control"
+                     placeholder="Buscar por placa"
+                     value="<%= params[:plate] %>">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Marca</label>
+              <input type="text"
+                     name="branch"
+                     class="form-control"
+                     placeholder="Buscar por marca"
+                     value="<%= params[:branch] %>">
+            </div>
+
+          </div>
+
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary">
+              <i class="fa fa-search"></i> Buscar
+            </button>
+
+            <a href="/cars" class="btn btn-outline-secondary">
+              <i class="fa fa-refresh"></i> Limpiar
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Lista -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h6 class="mb-0">
+          <i class="fa fa-list me-2"></i>
+          Lista de Carros
+        </h6>
+      </div>
+
+      <div class="card-body">
+
+        <!-- Header acciones -->
+        <div class="d-flex justify-content-between mb-3">
+
+          <form method="GET" action="/cars">
+            <input type="hidden" name="owner" value="<%= params[:owner] %>">
+            <input type="hidden" name="plate" value="<%= params[:plate] %>">
+            <input type="hidden" name="branch" value="<%= params[:branch] %>">
+
+            <select name="per_page"
+                    class="form-select"
+                    style="width:120px"
+                    onchange="this.form.submit()">
+
+              <option value="5" <%= 'selected' if @pagination[:per_page] == 5 %>>5</option>
+              <option value="10" <%= 'selected' if @pagination[:per_page] == 10 %>>10</option>
+              <option value="25" <%= 'selected' if @pagination[:per_page] == 25 %>>25</option>
+              <option value="50" <%= 'selected' if @pagination[:per_page] == 50 %>>50</option>
+            </select>
+          </form>
+
+          <a href="/cars/new" class="btn btn-success">
+            <i class="fa fa-plus"></i> Nuevo Carro
+          </a>
+
+        </div>
+
+        <!-- Tabla -->
+        <div class="table-responsive">
+          <table class="table table-striped table-hover">
+
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Propietario</th>
+                <th>Marca</th>
+                <th>Modelo</th>
+                <th>Color</th>
+                <th>Año</th>
+                <th>Placa</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <% if @cars.any? %>
+                <% @cars.each do |car| %>
+                  <tr>
+                    <td><%= car.id %></td>
+                    <td><%= car.owner %></td>
+                    <td><%= car.branch %></td>
+                    <td><%= car.model %></td>
+                    <td><%= car.color %></td>
+                    <td><%= car.frabricated %></td>
+                    <td><%= car.plate %></td>
+
+                    <td class="text-end">
+                      <a href="/api/v1/cars/<%= car.plate %>"
+                         class="btn btn-sm btn-outline-secondary" target="_blank">
+                        <i class="fa fa-book"></i>Ver en OLAP
+                      </a>
+
+                      <a href="/cars/<%= car.id %>/edit"
+                         class="btn btn-sm btn-outline-secondary">
+                        <i class="fa fa-edit"></i>Editar
+                      </a>
+
+                      <a href="/cars/<%= car.id %>/delete"
+                         class="btn btn-sm btn-outline-danger"
+                         data-method="delete"
+                         onclick="return confirm('¿Eliminar este carro?');">
+                        <i class="fa fa-trash"></i>Eliminar
+                      </a>
+                    </td>
+                  </tr>
+                <% end %>
+              <% else %>
+                <tr>
+                  <td colspan="8" class="text-center">
+                    No hay carros registrados.
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+
+            <!-- Paginación -->
+            <% if @pagination[:total_pages] > 1 %>
+              <tfoot>
+                <tr>
+                  <td colspan="8">
+
+                    <div class="d-flex justify-content-between align-items-center">
+
+                      <div class="text-muted">
+                        Página <%= @pagination[:page] %> de <%= @pagination[:total_pages] %>
+                        (Mostrando <%= @pagination[:start_record] %> - <%= @pagination[:end_record] %>)
+                      </div>
+
+                      <nav>
+                        <ul class="pagination mb-0">
+
+                          <li class="page-item <%= 'disabled' if @pagination[:page] == 1 %>">
+                            <a class="page-link"
+                               href="/cars?page=1&per_page=<%= @pagination[:per_page] %>">
+                              «
+                            </a>
+                          </li>
+
+                          <li class="page-item <%= 'disabled' if @pagination[:page] == 1 %>">
+                            <a class="page-link"
+                               href="/cars?page=<%= @pagination[:page] - 1 %>&per_page=<%= @pagination[:per_page] %>">
+                              ‹
+                            </a>
+                          </li>
+
+                          <li class="page-item <%= 'disabled' if @pagination[:page] == @pagination[:total_pages] %>">
+                            <a class="page-link"
+                               href="/cars?page=<%= @pagination[:page] + 1 %>&per_page=<%= @pagination[:per_page] %>">
+                              ›
+                            </a>
+                          </li>
+
+                          <li class="page-item <%= 'disabled' if @pagination[:page] == @pagination[:total_pages] %>">
+                            <a class="page-link"
+                               href="/cars?page=<%= @pagination[:total_pages] %>&per_page=<%= @pagination[:per_page] %>">
+                              »
+                            </a>
+                          </li>
+
+                        </ul>
+                      </nav>
+
+                    </div>
+
+                  </td>
+                </tr>
+              </tfoot>
+            <% end %>
+
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</main>

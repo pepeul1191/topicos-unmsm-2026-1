@@ -1,0 +1,45 @@
+<div class="sidebar bg-primary text-white">
+  <div class="sidebar-header">
+    <h3 class="d-flex align-items-center mb-0">
+      <img src="<%= assets_path %>/img/logo-contrast.png" height="37" width="190" alt="" class="icon">
+    </h3>
+  </div>
+  <hr>
+  <ul class="nav flex-column">
+    <li class="nav-item">
+      <a class="nav-link <%= 'active' if @nav_link == 'home' %>" href="/">
+        <i class="fa fa-home me-2"></i> Inicio
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link <%= 'active' if @nav_link == 'master-data' %>" href="/admin/master-data">
+        <i class="fa fa-cc-mastercard me-2"></i> Datos Maestros
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link <%= 'active' if @nav_link == 'student-management' %>" href="/admin/students">
+        <i class="fa fa-graduation-cap me-2"></i> Alumnos
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link <%= 'active' if @nav_link == 'worker-management' %>" href="/admin/workers">
+        <i class="fa fa-briefcase me-2"></i> Colaboradores
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link <%= 'active' if @nav_link == 'user-management' %>" href="<%= env('URL_ACCESS_SERVICE') %>" target="_blank">
+        <i class="fa fa-users me-2"></i> Usuarios
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link <%= 'active' if @nav_link == 'program-management' %>" href="/admin/programs">
+        <i class="fa fa-cogs me-2"></i> Programas
+      </a>
+    </li>
+  </ul>
+</div>

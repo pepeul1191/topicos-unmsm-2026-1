@@ -1,0 +1,72 @@
+<main class="main-content">
+  <div class="container-fluid">
+
+    <h3 class="mb-4">
+      <a href="/cars">
+        <i class="fa fa-car me-2"></i>Gestión de Vehículos
+      </a> / Crear Carro
+    </h3>
+
+    <%= render 'partials/flash_messages' %>
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <h6 class="mb-0">
+          <i class="fa fa-plus me-2"></i>
+          Nuevo Vehículo
+        </h6>
+      </div>
+
+      <div class="card-body">
+
+        <form action="/cars" method="POST" class="row g-3">
+
+          <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+
+          <div class="col-md-4">
+            <label for="owner" class="form-label">Propietario</label>
+            <input type="text" id="owner" name="owner" class="form-control" maxlength="40" required>
+          </div>
+
+          <div class="col-md-4">
+            <label for="branch" class="form-label">Marca</label>
+            <input type="text" id="branch" name="branch" class="form-control" maxlength="30" required>
+          </div>
+
+          <div class="col-md-4">
+            <label for="model" class="form-label">Modelo</label>
+            <input type="text" id="model" name="model" class="form-control" maxlength="30" required>
+          </div>
+
+          <div class="col-md-4">
+            <label for="color" class="form-label">Color</label>
+            <input type="text" id="color" name="color" class="form-control" maxlength="12" required>
+          </div>
+
+          <div class="col-md-4">
+            <label for="frabricated" class="form-label">Año de fabricación</label>
+            <input type="number" id="frabricated" name="frabricated" class="form-control" required>
+          </div>
+
+          <div class="col-md-4">
+            <label for="plate" class="form-label">Placa</label>
+            <input type="text" id="plate" name="plate" class="form-control" maxlength="7" required>
+          </div>
+
+          <div class="col-12 mt-4">
+            <button type="submit" class="btn btn-success">
+              <i class="fa fa-save me-2"></i>Guardar
+            </button>
+
+            <a href="/cars" class="btn btn-warning ms-2">
+              <i class="fa fa-times me-2"></i>Cancelar
+            </a>
+          </div>
+
+        </form>
+
+      </div>
+    </div>
+
+  </div>
+</main>
