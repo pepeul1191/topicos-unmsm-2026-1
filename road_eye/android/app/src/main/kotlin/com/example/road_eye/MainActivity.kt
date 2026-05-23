@@ -1,0 +1,5 @@
+package com.example.road_eye
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()
