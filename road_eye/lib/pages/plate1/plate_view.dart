@@ -1,10 +1,10 @@
 import 'package:camera/camera.dart';  // ← DEBE SER LA PRIMERA LÍNEA
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controllers/plate_controller.dart';
+import 'plate_controller.dart';
 
-class CameraView extends StatelessWidget {
-  const CameraView({super.key});
+class PlateView extends StatelessWidget {
+  const PlateView({super.key});
   
   @override
   Widget build(BuildContext context) {

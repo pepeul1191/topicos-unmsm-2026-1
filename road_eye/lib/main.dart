@@ -1,8 +1,9 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:road_eye/controllers/plate_controller.dart';
-import 'package:road_eye/views/camera_view.dart';
+import 'package:road_eye/pages/plate1/camera_view.dart';
+import 'package:road_eye/pages/plate1/plate_controller.dart';
+import 'package:road_eye/pages/plate1/plate_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +32,7 @@ class PlacasApp extends StatelessWidget {
         primaryColor: Colors.red,
         scaffoldBackgroundColor: Colors.black,
       ),
-      home: const CameraView(),
+      home: const PlateView(),
       debugShowCheckedModeBanner: false,
     );
   }

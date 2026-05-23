@@ -276,7 +276,7 @@ class PlateOnlyServer:
 async def main():
     server = PlateOnlyServer(yolo_model_path='models/best_upeu_yolo12_100ep.pt')
     
-    async with websockets.serve(server.handle_client, "0.0.0.0", 8765):
+    async with websockets.serve(server.handle_client, "192.168.1.23", 8765):
         logger.info("=" * 50)
         logger.info("🎯 SERVIDOR CORREGIDO - CON CONFIANZA")
         logger.info("=" * 50)
