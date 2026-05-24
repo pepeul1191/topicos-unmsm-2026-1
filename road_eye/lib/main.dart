@@ -1,7 +1,9 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:road_eye/pages/plate1/camera_view.dart';
+import 'package:road_eye/configs/theme.dart';
+import 'package:road_eye/pages/home/home_page.dart';
+import 'package:road_eye/pages/plate1/plate_view.dart';
 import 'package:road_eye/pages/plate1/plate_controller.dart';
 import 'package:road_eye/pages/plate1/plate_view.dart';
 
@@ -26,14 +28,19 @@ class PlacasApp extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
+    final TextTheme baseTextTheme = Typography.material2021().englishLike;
+    final MaterialTheme materialTheme = MaterialTheme(baseTextTheme);
+    //final colors = Theme.of(context).colorScheme;
+
     return GetMaterialApp(
       title: 'Lector de Placas Perú',
-      theme: ThemeData.dark().copyWith(
-        primaryColor: Colors.red,
-        scaffoldBackgroundColor: Colors.black,
-      ),
-      home: const PlateView(),
+      theme: materialTheme.light(),
+      darkTheme: materialTheme.dark(),
       debugShowCheckedModeBanner: false,
+      initialRoute: '/home',
+      routes: {
+        '/home': (context) => HomePage()
+      },
     );
   }
 }
