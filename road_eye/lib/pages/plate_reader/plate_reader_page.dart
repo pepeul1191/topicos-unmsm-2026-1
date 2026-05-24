@@ -60,34 +60,146 @@ class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingOb
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Column(
+      () => SingleChildScrollView( // Añadido para evitar desbordamiento (Overflow) al mostrar mucha info
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            
+            // Vista de cámara
+            _buildCameraPreview(),
+            
+            const SizedBox(height: 16),
+            
+            // Número de placa detectado
+            _buildPlateNumber(),
+            
+            const SizedBox(height: 16),
+
+            // NUEVO: Sección de información detallada del vehículo (Rails API)
+            _buildCarDetails(),
+            
+            const SizedBox(height: 16),
+            
+            // Estado y métricas
+            _buildStatusMetrics(),
+            
+            const SizedBox(height: 16),
+            
+            // Consejos
+            _buildTips(),
+            
+            const SizedBox(height: 24),
+            
+            // Botón de reinicio
+            _buildRestartButton(),
+            
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCarDetails() {
+    final details = controller.carDetails.value;
+    final error = controller.errorMessage.value;
+
+    // CASO 1: Si hay un error explícito de que no se encontró la placa
+    if (error.isNotEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.error.withOpacity(0.4),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.no_accounts, color: Theme.of(context).colorScheme.error),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Vehículo no registrado',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  Text(
+                    error, // Aquí se muestra el "La placa ABC-123 no se encuentra registrada" que viene de Rails
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onErrorContainer.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // CASO 2: Si no hay datos y tampoco hay error (estado inicial / esperando escaneo)
+    if (details == null) {
+      return const SizedBox.shrink();
+    }
+
+    // CASO 3: SUCCESS TRUE (Muestra la tarjeta con los datos del auto que ya tenías)
+    final car = details.car;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  child: Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(car.owner, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        '${car.branch} ${car.model} • ${car.color} (${car.fabricated})',
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
           
-          // Vista de cámara
-          _buildCameraPreview(),
-          
-          const SizedBox(height: 16),
-          
-          // Número de placa detectado
-          _buildPlateNumber(),
-          
-          const SizedBox(height: 16),
-          
-          // Estado y métricas
-          _buildStatusMetrics(),
-          
-          const SizedBox(height: 16),
-          
-          // Consejos
-          _buildTips(),
-          
-          const Spacer(),
-          
-          // Botón de reinicio
-          _buildRestartButton(),
-          
-          const SizedBox(height: 16),
+          // ... (Tus ExpansionTiles de Infracciones, Reclamos y Revisiones se quedan exactamente igual)
+          ExpansionTile(
+            leading: Icon(Icons.gavel, color: details.infractions.isNotEmpty ? Colors.red : Colors.grey),
+            title: Text('Infracciones (${details.infractions.length})'),
+            children: details.infractions.isEmpty
+                ? [const ListTile(title: Text('Sin infracciones registradas', style: TextStyle(fontSize: 13, color: Colors.grey)))]
+                : details.infractions.map((inf) => ListTile(title: Text(inf.description, style: const TextStyle(fontSize: 13)), dense: true)).toList(),
+          ),
+          // ... etc
         ],
       ),
     );
@@ -161,32 +273,25 @@ class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingOb
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.primaryContainer,
-          ],
+        // Sin fondo (transparente)
+        color: Colors.transparent, 
+        // Borde claro usando el esquema de colores del tema
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant, // Un gris/borde claro automático del tema
+          width: 1.5,
         ),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Center(
         child: Column(
           children: [
-            const Text(
+            Text(
               'PLACA DETECTADA',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.white70,
+                // Cambiado a un color oscuro o primario del tema para que contraste con el fondo claro
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
                 letterSpacing: 1,
               ),
             ),
@@ -194,11 +299,12 @@ class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingOb
             Obx(
               () => Text(
                 controller.plateNumber.value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  // Cambiado para que el texto de la placa sea legible sin el fondo azul
+                  color: Theme.of(context).colorScheme.onSurface, 
                   letterSpacing: 2,
                 ),
               ),

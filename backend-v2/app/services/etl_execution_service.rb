@@ -103,7 +103,7 @@ class EtlExecutionService < ApplicationService
         "No existe placa registrada en el OLAP"
       )
     end
-
+    puts '1 ++++++++++++++++++++++++++++++++++++'
     data = JSON.parse(raw)[plate]  # <-- Extraemos solo el valor de la placa
 
     build_response(

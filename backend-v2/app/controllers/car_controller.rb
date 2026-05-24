@@ -144,7 +144,7 @@ class CarController < ApplicationController
     resp = EtlExecutionService.fetch_one(params[:plate])
 
     if resp[:success]
-      render json: resp[:data], status: :ok
+      render json: resp, status: :ok
     else
       render json: resp, status: :not_found
     end

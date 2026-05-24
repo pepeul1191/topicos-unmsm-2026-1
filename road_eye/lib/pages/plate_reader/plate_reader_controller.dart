@@ -6,10 +6,15 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:road_eye/configs/constants.dart';
+import 'package:road_eye/configs/generic_response.dart';
+import 'package:road_eye/models/car_details.dart';
+import 'package:road_eye/services/car_service.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:image/image.dart' as img;
 
 class PlateReaderController extends GetxController {
+  CarService _carService = CarService();
+
   // Cámara
   CameraController? cameraController;
   final isCameraReady = false.obs;
@@ -26,16 +31,20 @@ class PlateReaderController extends GetxController {
   final fps = '0 fps'.obs;
   final latency = '0 ms'.obs;
   int frameCount = 0;
-  DateTime lastFpsTime = DateTime.now();
   Timer? fpsTimer;
   Timer? frameTimer;
+
+  // Detalle del Carros
+  final Rxn<CarDetails> carDetails = Rxn<CarDetails>();
+  var errorMessage = ''.obs; // Variable reactiva para el error
   
   // Control de estado
   bool _isDisposing = false;
+  bool _isCapturing = false; // Previene capturas simultáneas
   
   // Configuración
   final String wsUrl = Constants.wsUrl;
-  final int frameIntervalMs = 100; // 10 fps
+  final int frameIntervalMs = 200; // Cambiado de 100 a 200ms (5 fps)
   
   @override
   void onInit() {
@@ -66,7 +75,7 @@ class PlateReaderController extends GetxController {
       
       cameraController = CameraController(
         camera,
-        ResolutionPreset.medium,
+        ResolutionPreset.low, // Cambiado de medium a low para mejor rendimiento
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -81,7 +90,7 @@ class PlateReaderController extends GetxController {
     } catch (e) {
       status.value = '❌ Error cámara';
       if (kDebugMode) {
-        print('❌ Error inicializando cámara: $e');
+        //print('❌ Error inicializando cámara: $e');
       }
     }
   }
@@ -95,8 +104,8 @@ class PlateReaderController extends GetxController {
   }
   
   Future<void> _captureAndSendFrame() async {
-    // No capturar si está cerrando
-    if (_isDisposing) return;
+    // No capturar si está cerrando o ya hay una captura en curso
+    if (_isDisposing || _isCapturing) return;
     
     if (cameraController == null || 
         !cameraController!.value.isInitialized || 
@@ -104,14 +113,20 @@ class PlateReaderController extends GetxController {
       return;
     }
     
+    _isCapturing = true;
+    
     try {
       final startTime = DateTime.now();
       
+      // Capturar imagen
       final XFile image = await cameraController!.takePicture();
       final bytes = await image.readAsBytes();
+      
+      // Comprimir imagen (en una isolate para no bloquear)
       final compressedBytes = await _compressImage(bytes);
       final base64Image = base64Encode(compressedBytes);
       
+      // Enviar por WebSocket
       if (webSocketChannel != null && !_isDisposing) {
         webSocketChannel!.sink.add(jsonEncode({
           'type': 'frame',
@@ -119,16 +134,22 @@ class PlateReaderController extends GetxController {
         }));
       }
       
+      // Actualizar latencia
       final endTime = DateTime.now();
       final processingTime = endTime.difference(startTime).inMilliseconds;
       latency.value = '$processingTime ms';
       
+      // Actualizar contador de frames para FPS
       frameCount++;
       
     } catch (e) {
-      if (kDebugMode && !_isDisposing) {
-        print('❌ Error capturando frame: $e');
+      if (!_isDisposing && !e.toString().contains('Previous capture has not returned yet')) {
+        if (kDebugMode) {
+          print('❌ Error capturando frame: $e');
+        }
       }
+    } finally {
+      _isCapturing = false;
     }
   }
   
@@ -137,12 +158,31 @@ class PlateReaderController extends GetxController {
       img.Image? original = img.decodeImage(bytes);
       if (original == null) return bytes;
       
-      final resized = img.copyResize(original, width: 480);
-      final compressed = img.encodeJpg(resized, quality: 70);
+      // Redimensionar a 320px de ancho (más pequeño para mejor rendimiento)
+      final resized = img.copyResize(original, width: 320);
+      
+      // Codificar a JPEG con 60% calidad
+      final compressed = img.encodeJpg(resized, quality: 60);
       
       return Uint8List.fromList(compressed);
     } catch (e) {
       return bytes;
+    }
+  }
+
+  // ============= RAILS ==============
+
+  void _searchCarDetails(String numeroPlaca) async {
+    errorMessage.value = ''; // Limpiamos errores previos
+  
+    GenericResponse<CarDetails> response = await _carService.fetchByPlate(numeroPlaca);
+    
+    if (response.success && response.data != null) {
+      carDetails.value = response.data;
+    } else {
+      carDetails.value = null;
+      // Guardamos el mensaje que envió Rails ("La placa X no se encuentra registrada")
+      errorMessage.value = response.message; 
     }
   }
   
@@ -172,18 +212,16 @@ class PlateReaderController extends GetxController {
           if (!_isDisposing) {
             status.value = '⚪ Desconectado';
             isConnected.value = false;
-            // NO reconectar automáticamente - el usuario debe presionar el botón
           }
         },
         onError: (error) {
           if (kDebugMode && !_isDisposing) {
-            print('❌ WebSocket error: $error');
+            //print('❌ WebSocket error: $error');
           }
           
           if (!_isDisposing) {
             status.value = '⚠️ Error de conexión';
             isConnected.value = false;
-            // NO reconectar automáticamente - el usuario debe presionar el botón
           }
         },
       );
@@ -196,13 +234,12 @@ class PlateReaderController extends GetxController {
       }
     } catch (e) {
       if (kDebugMode && !_isDisposing) {
-        print('❌ Error conectando WebSocket: $e');
+        //print('❌ Error conectando WebSocket: $e');
       }
       
       if (!_isDisposing) {
         status.value = '❌ Error de conexión';
         isConnected.value = false;
-        // NO reconectar automáticamente - el usuario debe presionar el botón
       }
     }
   }
@@ -210,10 +247,18 @@ class PlateReaderController extends GetxController {
   void _handleWebSocketMessage(dynamic message) {
     try {
       final data = jsonDecode(message);
+
+      print('A +++++++++++++++++++++++++++++++');
+      print(data);
+      print('B +++++++++++++++++++++++++++++++');
       
       if (data['type'] == 'detection') {
         if (data['plate'] != null && data['plate'].toString().isNotEmpty) {
+          print('1 +++++++++++++++++++++++++++++++');
           plateNumber.value = data['plate'];
+          _searchCarDetails(data['plate']);
+
+          print('2 +++++++++++++++++++++++++++++++');
         } else if (plateNumber.value != '———') {
           plateNumber.value = '🔍 Buscando...';
         }
@@ -225,7 +270,7 @@ class PlateReaderController extends GetxController {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error parseando mensaje: $e');
+        //print('❌ Error parseando mensaje: $e');
       }
     }
   }
@@ -259,7 +304,7 @@ class PlateReaderController extends GetxController {
         await webSocketChannel!.sink.close();
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Error cerrando WebSocket: $e');
+          //print('❌ Error cerrando WebSocket: $e');
         }
       }
       webSocketChannel = null;
@@ -297,7 +342,7 @@ class PlateReaderController extends GetxController {
         }
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Error cerrando WebSocket: $e');
+          //print('❌ Error cerrando WebSocket: $e');
         }
       }
       webSocketChannel = null;
@@ -312,7 +357,7 @@ class PlateReaderController extends GetxController {
         }
       } catch (e) {
         if (kDebugMode) {
-          print('❌ Error liberando cámara: $e');
+          //print('❌ Error liberando cámara: $e');
         }
       }
       cameraController = null;
@@ -326,6 +371,7 @@ class PlateReaderController extends GetxController {
     fps.value = '0 fps';
     latency.value = '0 ms';
     frameCount = 0;
+    _isCapturing = false;
     
     if (kDebugMode) {
       print('✅ Recursos cerrados correctamente');
