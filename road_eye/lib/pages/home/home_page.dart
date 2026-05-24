@@ -1,9 +1,9 @@
 // lib/pages/home/home_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:road_eye/pages/wellcome/wellcome_page.dart';
 import 'home_controller.dart';
-import '../wellcome/wellcome_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -29,14 +29,11 @@ class _HomePageState extends State<HomePage> {
 
   void _onMenuSelected(String value) {
     switch (value) {
-      case 'perfil':
-        print('Ir a Ver Perfil');
+      case 'about':
+        control.goToAbout(context);
         break;
-      case 'acerca':
-        print('Ir a Acerca de');
-        break;
-      case 'logout':
-        print('Cerrar sesión');
+      case 'exit':
+        SystemNavigator.pop();
         break;
     }
   }
@@ -50,12 +47,12 @@ class _HomePageState extends State<HomePage> {
           onSelected: _onMenuSelected,
           itemBuilder: (context) => [
             PopupMenuItem(
-              value: 'acerca',
+              value: 'about',
               child: Text('Acerca de'),
             ),
             PopupMenuItem(
-              value: 'logout',
-              child: Text('Cerrar Sesión'),
+              value: 'exit',
+              child: Text('Salir'),
             ),
           ],
         ),

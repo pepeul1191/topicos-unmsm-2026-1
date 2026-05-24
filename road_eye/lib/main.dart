@@ -2,6 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:road_eye/configs/theme.dart';
+import 'package:road_eye/pages/about/about_page.dart';
 import 'package:road_eye/pages/home/home_page.dart';
 import 'package:road_eye/pages/plate1/plate_view.dart';
 import 'package:road_eye/pages/plate1/plate_controller.dart';
@@ -39,7 +40,8 @@ class PlacasApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/home',
       routes: {
-        '/home': (context) => HomePage()
+        '/home': (context) => HomePage(),
+        '/about': (context) => AboutPage()
       },
     );
   }
