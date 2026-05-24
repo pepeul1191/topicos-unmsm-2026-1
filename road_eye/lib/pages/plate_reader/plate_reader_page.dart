@@ -13,13 +13,26 @@ class PlateReaderPage extends StatefulWidget {
 
 class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingObserver {
   late PlateReaderController controller;
-  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initializeController();
+    _getController();
+  }
+
+  void _getController() {
+    try {
+      if (Get.isRegistered<PlateReaderController>()) {
+        controller = Get.find<PlateReaderController>();
+      } else {
+        // Fallback: crear el controlador si no existe
+        controller = Get.put(PlateReaderController());
+      }
+    } catch (e) {
+      debugPrint('Error obteniendo controlador: $e');
+      controller = Get.put(PlateReaderController());
+    }
   }
 
   @override
@@ -37,45 +50,15 @@ class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingOb
     }
   }
 
-  Future<void> _initializeController() async {
-    try {
-      // Verificar si el controlador ya existe en GetX
-      if (Get.isRegistered<PlateReaderController>()) {
-        controller = Get.find<PlateReaderController>();
-      } else {
-        // Si no existe, crear el controlador (sin parámetros)
-        controller = Get.put(PlateReaderController());
-        
-        // Pequeña espera para que el controlador se inicialice
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-      
-      setState(() {
-        _isInitialized = true;
-      });
-    } catch (e) {
-      debugPrint('Error inicializando controlador: $e');
-      setState(() {
-        _isInitialized = true;
-      });
-    }
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // No disposeamos el controller aquí porque podría necesitarse al volver a la pestaña
+    // No disposeamos el controller aquí porque HomePage lo maneja
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
     return Obx(
       () => Column(
         children: [
@@ -332,12 +315,16 @@ class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingOb
   }
 
   Widget _buildRestartButton() {
+    if (controller == null) {
+      return const SizedBox.shrink();
+    }
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: ElevatedButton.icon(
-        onPressed: () => controller.restartCamera(),
+        onPressed: () => controller!.reconnectWebSocket(), // Usar reconnectWebSocket
         icon: const Icon(Icons.refresh, size: 18),
-        label: const Text('Reiniciar conexión'),
+        label: const Text('Reconectar'),
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           foregroundColor: Theme.of(context).colorScheme.onSurface,
