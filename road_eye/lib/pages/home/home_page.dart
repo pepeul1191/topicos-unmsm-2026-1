@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:road_eye/pages/plate_reader/plate_reader_page.dart';
 import 'package:road_eye/pages/wellcome/wellcome_page.dart';
 import 'home_controller.dart';
 
@@ -19,7 +20,7 @@ class _HomePageState extends State<HomePage> {
 
   final List<Widget> _pages = [
     Center(child: WellcomePage()), // index 0
-    Center(child: Text('Escanear QR')), // index 1
+    Center(child: PlateReaderPage()), // index 1
     Center(child: Text('Favoritos')), // index 2
   ];
 
