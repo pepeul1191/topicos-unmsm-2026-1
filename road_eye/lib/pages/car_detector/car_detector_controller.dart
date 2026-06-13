@@ -4,13 +4,14 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:road_eye/configs/constants.dart';
 import 'package:image/image.dart' as img;
 
 class CarDetectorController extends GetxController {
-  // Cámara
+  // Cámara (se usa solo para capturar, NO se muestra)
   CameraController? cameraController;
   final isCameraReady = false.obs;
   
@@ -19,21 +20,22 @@ class CarDetectorController extends GetxController {
   final isConnected = false.obs;
   final connectionStatus = '⚪ Desconectado'.obs;
   
-  // Detección
+  // Detección - SOLO mostrar la imagen procesada del servidor
+  final processedImage = ''.obs; // Imagen procesada por YOLO
   final vehiclesCount = 0.obs;
-  final isDetecting = false.obs;
-  final processedImage = ''.obs; // Base64 de imagen procesada
   final detections = <Map<String, dynamic>>[].obs;
+  final isStreaming = false.obs;
+  final lastDetection = ''.obs;
+  
+  // Métricas
+  final fps = '0 fps'.obs;
+  int frameCount = 0;
+  Timer? fpsTimer;
+  Timer? streamTimer;
+  bool _isSending = false;
   
   // Configuración
   final selectedModel = 'yolo11n'.obs;
-  
-  // Captura de frames
-  Timer? frameTimer;
-  bool _isCapturing = false;
-  int frameCount = 0;
-  final fps = '0 fps'.obs;
-  Timer? fpsTimer;
   
   // Modelos disponibles
   final List<Map<String, String>> models = [
@@ -57,18 +59,22 @@ class CarDetectorController extends GetxController {
   @override
   void onClose() {
     _isDisposing = true;
+    stopStreaming();
     _disconnectWebSocket();
-    frameTimer?.cancel();
     fpsTimer?.cancel();
+    streamTimer?.cancel();
     cameraController?.dispose();
     super.onClose();
   }
+  
+  // ============= INICIALIZACIÓN DE CÁMARA =============
   
   Future<void> _initCamera() async {
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
         print('❌ No hay cámaras disponibles');
+        connectionStatus.value = '❌ No hay cámara';
         return;
       }
       
@@ -79,7 +85,7 @@ class CarDetectorController extends GetxController {
       
       cameraController = CameraController(
         camera,
-        ResolutionPreset.low, // Usar baja resolución para mejor rendimiento
+        ResolutionPreset.low, // Baja resolución para mejor rendimiento
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -88,12 +94,15 @@ class CarDetectorController extends GetxController {
       isCameraReady.value = true;
       
       if (kDebugMode) {
-        print('✅ Cámara inicializada');
+        print('✅ Cámara inicializada (modo oculto)');
       }
     } catch (e) {
       print('❌ Error inicializando cámara: $e');
+      connectionStatus.value = '❌ Error de cámara';
     }
   }
+  
+  // ============= WEBSOCKET =============
   
   Future<void> _connectWebSocket() async {
     if (_isDisposing) return;
@@ -115,6 +124,7 @@ class CarDetectorController extends GetxController {
             print('🔌 WebSocket desconectado');
             isConnected.value = false;
             connectionStatus.value = '⚪ Desconectado';
+            isStreaming.value = false;
           }
         },
         onError: (error) {
@@ -122,6 +132,7 @@ class CarDetectorController extends GetxController {
             print('❌ WebSocket error: $error');
             isConnected.value = false;
             connectionStatus.value = '❌ Error de conexión';
+            isStreaming.value = false;
           }
         },
       );
@@ -131,9 +142,6 @@ class CarDetectorController extends GetxController {
       
       // Enviar configuración inicial
       _sendConfig();
-      
-      // Iniciar captura de frames
-      _startFrameCapture();
       
     } catch (e) {
       print('❌ Error conectando WebSocket: $e');
@@ -148,6 +156,7 @@ class CarDetectorController extends GetxController {
       webSocketChannel = null;
     }
     isConnected.value = false;
+    isStreaming.value = false;
   }
   
   void _sendConfig() {
@@ -159,29 +168,121 @@ class CarDetectorController extends GetxController {
     }
   }
   
-  void _startFrameCapture() {
-    frameTimer?.cancel();
-    // Capturar cada 200ms (5 fps)
-    frameTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
-      if (isCameraReady.value && isConnected.value && !_isCapturing && !_isDisposing) {
-        _captureAndSendFrame();
+  void _handleWebSocketMessage(dynamic message) {
+    try {
+      final data = jsonDecode(message);
+      final type = data['type'];
+      
+      if (type == 'connected') {
+        print('✅ ${data['message']}');
+        connectionStatus.value = '✅ Conectado';
+        
+      } else if (type == 'config_ack') {
+        print('✅ ${data['message']}');
+        
+      } else if (type == 'detection') {
+        // Actualizar la imagen procesada y resultados en tiempo real
+        processedImage.value = data['processed_image'] ?? '';
+        vehiclesCount.value = data['vehicles_count'] ?? 0;
+        detections.value = List<Map<String, dynamic>>.from(data['detections'] ?? []);
+        
+        // Guardar última detección relevante
+        if (detections.isNotEmpty) {
+          lastDetection.value = detections.first['label'];
+        }
+        
+      } else if (type == 'error') {
+        print('❌ Error del servidor: ${data['message']}');
+        connectionStatus.value = '⚠️ Error: ${data['message']}';
       }
-    });
+      
+    } catch (e) {
+      print('❌ Error parseando mensaje: $e');
+    }
   }
   
-  Future<void> _captureAndSendFrame() async {
+  // ============= STREAMING =============
+  
+  void startStreaming() {
+    if (streamTimer != null) {
+      print('⚠️ Streaming ya está activo');
+      return;
+    }
+    
+    if (!isCameraReady.value) {
+      Get.snackbar(
+        'Error',
+        'Cámara no disponible',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    
+    if (!isConnected.value) {
+      Get.snackbar(
+        'Error de conexión',
+        'No hay conexión con el servidor',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    
+    isStreaming.value = true;
+    processedImage.value = ''; // Limpiar imagen anterior
+    
+    // Enviar frames cada 150ms (~6-7 fps)
+    streamTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+      if (isStreaming.value && isCameraReady.value && isConnected.value && !_isSending && !_isDisposing) {
+        _sendFrame();
+      }
+    });
+    
+    print('🎥 Streaming iniciado - Mostrando SOLO imagen procesada');
+    Get.snackbar(
+      'Streaming',
+      'Streaming iniciado. Mostrando detecciones en tiempo real.',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+    );
+  }
+  
+  void stopStreaming() {
+    isStreaming.value = false;
+    streamTimer?.cancel();
+    streamTimer = null;
+    
+    // Limpiar imagen al detener
+    processedImage.value = '';
+    
+    print('🛑 Streaming detenido');
+    Get.snackbar(
+      'Streaming',
+      'Streaming detenido',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.orange,
+      colorText: Colors.white,
+    );
+  }
+  
+  Future<void> _sendFrame() async {
     if (cameraController == null || !cameraController!.value.isInitialized) {
       return;
     }
     
-    _isCapturing = true;
+    _isSending = true;
     
     try {
-      // Capturar imagen
+      // Capturar frame
       final XFile image = await cameraController!.takePicture();
       final bytes = await image.readAsBytes();
       
-      // Comprimir para reducir tamaño
+      // Comprimir para reducir ancho de banda
       final compressedBytes = await _compressImage(bytes);
       final base64Image = base64Encode(compressedBytes);
       
@@ -198,10 +299,10 @@ class CarDetectorController extends GetxController {
       
     } catch (e) {
       if (!_isDisposing && kDebugMode) {
-        print('❌ Error capturando frame: $e');
+        print('❌ Error enviando frame: $e');
       }
     } finally {
-      _isCapturing = false;
+      _isSending = false;
     }
   }
   
@@ -210,6 +311,7 @@ class CarDetectorController extends GetxController {
       final image = img.decodeImage(bytes);
       if (image == null) return bytes;
       
+      // Reducir tamaño para mejor rendimiento
       final resized = img.copyResize(image, width: 320);
       final compressed = img.encodeJpg(resized, quality: 60);
       
@@ -219,36 +321,7 @@ class CarDetectorController extends GetxController {
     }
   }
   
-  void _handleWebSocketMessage(dynamic message) {
-    try {
-      final data = jsonDecode(message);
-      final type = data['type'];
-      
-      if (type == 'connected') {
-        print('✅ ${data['message']}');
-        connectionStatus.value = '✅ Conectado - ${data['message']}';
-        
-      } else if (type == 'config_ack') {
-        print('✅ ${data['message']}');
-        
-      } else if (type == 'detection') {
-        // Actualizar resultados
-        vehiclesCount.value = data['vehicles_count'] ?? 0;
-        processedImage.value = data['processed_image'] ?? '';
-        detections.value = List<Map<String, dynamic>>.from(data['detections'] ?? []);
-        
-      } else if (type == 'error') {
-        print('❌ Error del servidor: ${data['message']}');
-        connectionStatus.value = '⚠️ Error: ${data['message']}';
-        
-      } else if (type == 'pong') {
-        // Respuesta a ping, ignorar
-      }
-      
-    } catch (e) {
-      print('❌ Error parseando mensaje: $e');
-    }
-  }
+  // ============= MÉTRICAS =============
   
   void _startFpsCounter() {
     fpsTimer?.cancel();
@@ -258,9 +331,10 @@ class CarDetectorController extends GetxController {
     });
   }
   
+  // ============= CONFIGURACIÓN =============
+  
   void updateModel(String value) {
     selectedModel.value = value;
-    // Enviar nueva configuración al servidor
     if (isConnected.value && webSocketChannel != null) {
       webSocketChannel!.sink.add(jsonEncode({
         'type': 'config',
@@ -269,20 +343,51 @@ class CarDetectorController extends GetxController {
     }
   }
   
+  // ============= UTILIDADES =============
+  
+  void clearResults() {
+    processedImage.value = '';
+    vehiclesCount.value = 0;
+    detections.clear();
+    lastDetection.value = '';
+  }
+  
   Future<void> reconnectWebSocket() async {
     if (_isDisposing) return;
     
     print('🔄 Reconectando WebSocket...');
     connectionStatus.value = '🔄 Reconectando...';
     
+    // Detener streaming
+    final wasStreaming = isStreaming.value;
+    if (wasStreaming) {
+      stopStreaming();
+    }
+    
+    // Reconectar
     _disconnectWebSocket();
     await Future.delayed(const Duration(milliseconds: 500));
     await _connectWebSocket();
+    
+    // Si estaba en streaming, reiniciar
+    if (wasStreaming) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      startStreaming();
+    }
   }
   
-  void clearResults() {
-    processedImage.value = '';
-    vehiclesCount.value = 0;
-    detections.clear();
+  // Para diagnóstico
+  Future<void> testCamera() async {
+    if (cameraController == null) {
+      print('❌ Cámara no inicializada');
+      return;
+    }
+    
+    try {
+      final XFile testImage = await cameraController!.takePicture();
+      print('✅ Cámara funciona correctamente. Foto guardada en: ${testImage.path}');
+    } catch (e) {
+      print('❌ Error probando cámara: $e');
+    }
   }
 }
