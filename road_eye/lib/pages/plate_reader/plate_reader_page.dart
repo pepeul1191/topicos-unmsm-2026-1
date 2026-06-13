@@ -104,7 +104,9 @@ class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingOb
     final details = controller.carDetails.value;
     final error = controller.errorMessage.value;
 
-    // CASO 1: Si hay un error explícito de que no se encontró la placa
+    // ==========================================
+    // CASO 1: ERROR (SUCCESS FALSE - NO ENCONTRADO)
+    // ==========================================
     if (error.isNotEmpty) {
       return Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -131,8 +133,9 @@ class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingOb
                       color: Theme.of(context).colorScheme.onErrorContainer,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
-                    error, // Aquí se muestra el "La placa ABC-123 no se encuentra registrada" que viene de Rails
+                    error,
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onErrorContainer.withOpacity(0.8),
@@ -146,27 +149,34 @@ class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingOb
       );
     }
 
-    // CASO 2: Si no hay datos y tampoco hay error (estado inicial / esperando escaneo)
+    // ==========================================
+    // CASO 2: INICIAL (SIN DATOS Y SIN ERROR)
+    // ==========================================
     if (details == null) {
       return const SizedBox.shrink();
     }
 
-    // CASO 3: SUCCESS TRUE (Muestra la tarjeta con los datos del auto que ya tenías)
+    // ==========================================
+    // CASO 3: SUCCESS TRUE (LISTADO DIRECTO)
+    // ==========================================
     final car = details.car;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
-        ),
-      ),
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
+          // 1. TARJETA PRINCIPAL: DATOS DEL COCHE Y PROPIETARIO
+          Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+              ),
+            ),
             child: Row(
               children: [
                 CircleAvatar(
@@ -178,10 +188,17 @@ class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingOb
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(car.owner, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        car.owner, 
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                      ),
+                      const SizedBox(height: 2),
                       Text(
                         '${car.branch} ${car.model} • ${car.color} (${car.fabricated})',
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 12, 
+                          color: Theme.of(context).colorScheme.onSurfaceVariant
+                        ),
                       ),
                     ],
                   ),
@@ -189,18 +206,160 @@ class _PlateReaderPageState extends State<PlateReaderPage> with WidgetsBindingOb
               ],
             ),
           ),
-          const Divider(height: 1),
           
-          // ... (Tus ExpansionTiles de Infracciones, Reclamos y Revisiones se quedan exactamente igual)
-          ExpansionTile(
-            leading: Icon(Icons.gavel, color: details.infractions.isNotEmpty ? Colors.red : Colors.grey),
-            title: Text('Infracciones (${details.infractions.length})'),
-            children: details.infractions.isEmpty
-                ? [const ListTile(title: Text('Sin infracciones registradas', style: TextStyle(fontSize: 13, color: Colors.grey)))]
-                : details.infractions.map((inf) => ListTile(title: Text(inf.description, style: const TextStyle(fontSize: 13)), dense: true)).toList(),
+          const SizedBox(height: 20),
+
+          // 2. CATEGORÍA: INFRACCIONES
+          _buildCategoryHeader(
+            title: 'Infracciones', 
+            count: details.infractions.length, 
+            icon: Icons.gavel, 
+            color: Colors.red
           ),
-          // ... etc
+          const SizedBox(height: 8),
+          details.infractions.isEmpty
+              ? _buildEmptyState('Sin infracciones registradas')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: details.infractions.length,
+                  itemBuilder: (context, index) {
+                    final inf = details.infractions[index];
+                    return _buildHistoryItem(
+                      title: inf.description,
+                      date: inf.created,
+                      accentColor: Colors.red,
+                    );
+                  },
+                ),
+
+          const SizedBox(height: 20),
+
+          // 3. CATEGORÍA: RECLAMOS / QUEJAS
+          _buildCategoryHeader(
+            title: 'Reclamos / Quejas', 
+            count: details.complains.length, 
+            icon: Icons.report_problem, 
+            color: Colors.orange
+          ),
+          const SizedBox(height: 8),
+          details.complains.isEmpty
+              ? _buildEmptyState('Sin reclamos vigentes')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: details.complains.length,
+                  itemBuilder: (context, index) {
+                    final comp = details.complains[index];
+                    return _buildHistoryItem(
+                      title: comp.description,
+                      date: comp.created,
+                      accentColor: Colors.orange,
+                    );
+                  },
+                ),
+
+          const SizedBox(height: 20),
+
+          // 4. CATEGORÍA: REVISIONES TÉCNICAS
+          _buildCategoryHeader(
+            title: 'Revisiones Técnicas', 
+            count: details.technicalReviews.length, 
+            icon: Icons.fact_check, 
+            color: Colors.green
+          ),
+          const SizedBox(height: 8),
+          details.technicalReviews.isEmpty
+              ? _buildEmptyState('Sin revisiones registradas')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: details.technicalReviews.length,
+                  itemBuilder: (context, index) {
+                    final rev = details.technicalReviews[index];
+                    return _buildHistoryItem(
+                      title: rev.description,
+                      date: rev.created,
+                      accentColor: Colors.green,
+                    );
+                  },
+                ),
         ],
+      ),
+    );
+  }
+
+  // --- SUB-WIDGETS AUXILIARES PARA EL LISTADO ---
+
+  Widget _buildCategoryHeader({
+    required String title, 
+    required int count, 
+    required IconData icon, 
+    required Color color
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '$count',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryItem({
+    required String title, 
+    required DateTime? date, 
+    required Color accentColor
+  }) {
+    final dateString = date != null ? date.toLocal().toString().split(' ')[0] : 'Sin fecha';
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.4),
+        ),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(Icons.arrow_right, color: accentColor),
+        title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        trailing: Text(
+          dateString,
+          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
       ),
     );
   }

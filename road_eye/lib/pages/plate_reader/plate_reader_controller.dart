@@ -41,6 +41,7 @@ class PlateReaderController extends GetxController {
   // Control de estado
   bool _isDisposing = false;
   bool _isCapturing = false; // Previene capturas simultáneas
+  String _lastProcessedPlate = ''; // Para evitar procesar la misma placa múltiples veces
   
   // Configuración
   final String wsUrl = Constants.wsUrl;
@@ -52,6 +53,14 @@ class PlateReaderController extends GetxController {
     _initCamera();
     _connectWebSocket();
     _startFpsCounter();
+    
+    // Listener para cuando se obtienen los detalles del auto
+    ever(carDetails, (CarDetails? details) {
+      if (details != null) {
+        // Si se obtuvieron los detalles del auto, cerrar WebSocket
+        _closeWebSocketAndCamera();
+      }
+    });
   }
   
   @override
@@ -75,7 +84,7 @@ class PlateReaderController extends GetxController {
       
       cameraController = CameraController(
         camera,
-        ResolutionPreset.low, // Cambiado de medium a low para mejor rendimiento
+        ResolutionPreset.low,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -122,7 +131,7 @@ class PlateReaderController extends GetxController {
       final XFile image = await cameraController!.takePicture();
       final bytes = await image.readAsBytes();
       
-      // Comprimir imagen (en una isolate para no bloquear)
+      // Comprimir imagen
       final compressedBytes = await _compressImage(bytes);
       final base64Image = base64Encode(compressedBytes);
       
@@ -158,10 +167,7 @@ class PlateReaderController extends GetxController {
       img.Image? original = img.decodeImage(bytes);
       if (original == null) return bytes;
       
-      // Redimensionar a 320px de ancho (más pequeño para mejor rendimiento)
       final resized = img.copyResize(original, width: 320);
-      
-      // Codificar a JPEG con 60% calidad
       final compressed = img.encodeJpg(resized, quality: 60);
       
       return Uint8List.fromList(compressed);
@@ -170,19 +176,71 @@ class PlateReaderController extends GetxController {
     }
   }
 
+  // ============= MÉTODO PARA CERRAR WEBSOCKET Y CÁMARA =============
+  
+  Future<void> _closeWebSocketAndCamera() async {
+    if (_isDisposing) return;
+    
+    if (kDebugMode) {
+      print('🔒 Cerrando WebSocket y cámara - Auto detectado correctamente');
+    }
+    
+    status.value = '✅ Auto detectado';
+    _isDisposing = true;
+    
+    // Detener timers de captura
+    frameTimer?.cancel();
+    frameTimer = null;
+    
+    fpsTimer?.cancel();
+    fpsTimer = null;
+    
+    // Cerrar WebSocket
+    if (webSocketChannel != null) {
+      try {
+        await webSocketChannel!.sink.close();
+        if (kDebugMode) {
+          print('✅ WebSocket cerrado');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('❌ Error cerrando WebSocket: $e');
+        }
+      }
+      webSocketChannel = null;
+    }
+    
+    isConnected.value = false;
+    
+    // Nota: No disposeamos la cámara para poder ver el último frame
+    // Solo cerramos el WebSocket
+    
+    if (kDebugMode) {
+      print('✅ Recursos cerrados exitosamente');
+    }
+  }
+
   // ============= RAILS ==============
 
   void _searchCarDetails(String numeroPlaca) async {
-    errorMessage.value = ''; // Limpiamos errores previos
+    // Evitar procesar la misma placa múltiples veces
+    if (_lastProcessedPlate == numeroPlaca) {
+      return;
+    }
+    
+    _lastProcessedPlate = numeroPlaca;
+    errorMessage.value = '';
   
     GenericResponse<CarDetails> response = await _carService.fetchByPlate(numeroPlaca);
     
     if (response.success && response.data != null) {
       carDetails.value = response.data;
+      // El ever() listener se encargará de cerrar el WebSocket automáticamente
     } else {
       carDetails.value = null;
-      // Guardamos el mensaje que envió Rails ("La placa X no se encuentra registrada")
-      errorMessage.value = response.message; 
+      errorMessage.value = response.message;
+      // Resetear para permitir reintentar con otra placa
+      _lastProcessedPlate = '';
     }
   }
   
@@ -248,17 +306,19 @@ class PlateReaderController extends GetxController {
     try {
       final data = jsonDecode(message);
 
-      print('A +++++++++++++++++++++++++++++++');
-      print(data);
-      print('B +++++++++++++++++++++++++++++++');
+      if (kDebugMode) {
+        print('📨 Mensaje recibido: $data');
+      }
       
       if (data['type'] == 'detection') {
         if (data['plate'] != null && data['plate'].toString().isNotEmpty) {
-          print('1 +++++++++++++++++++++++++++++++');
-          plateNumber.value = data['plate'];
-          _searchCarDetails(data['plate']);
-
-          print('2 +++++++++++++++++++++++++++++++');
+          final detectedPlate = data['plate'];
+          plateNumber.value = detectedPlate;
+          
+          // Solo buscar si aún no hemos procesado esta placa y el WebSocket está activo
+          if (_lastProcessedPlate != detectedPlate && !_isDisposing) {
+            _searchCarDetails(detectedPlate);
+          }
         } else if (plateNumber.value != '———') {
           plateNumber.value = '🔍 Buscando...';
         }
@@ -298,6 +358,12 @@ class PlateReaderController extends GetxController {
     
     status.value = '🔄 Reconectando...';
     
+    // Resetear estado
+    _lastProcessedPlate = '';
+    carDetails.value = null;
+    errorMessage.value = '';
+    plateNumber.value = '———';
+    
     // Cerrar conexión existente
     if (webSocketChannel != null) {
       try {
@@ -311,12 +377,30 @@ class PlateReaderController extends GetxController {
     }
     
     isConnected.value = false;
+    _isDisposing = false;
     
     // Pequeña pausa antes de reconectar
     await Future.delayed(const Duration(milliseconds: 500));
     
     // Intentar nueva conexión
     _connectWebSocket();
+  }
+  
+  // Método para reiniciar el escaneo (después de ver los detalles)
+  Future<void> resetAndRestart() async {
+    if (kDebugMode) {
+      print('🔄 Reiniciando escaneo...');
+    }
+    
+    // Resetear estados
+    _lastProcessedPlate = '';
+    carDetails.value = null;
+    errorMessage.value = '';
+    plateNumber.value = '———';
+    _isDisposing = false;
+    
+    // Reconectar WebSocket
+    await reconnectWebSocket();
   }
   
   // ============= UTILIDADES =============

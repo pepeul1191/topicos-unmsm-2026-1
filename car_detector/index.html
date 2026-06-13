@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLO Panel de Pruebas Local</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #1e1e24; color: #fff; margin: 20px; text-align: center; }
+        .container { max-width: 800px; margin: 0 auto; background: #2a2a35; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #a0a0b0; }
+        select, input[type="text"] { width: 100%; padding: 10px; border-radius: 5px; border: none; background: #3b3b4f; color: #fff; box-sizing: border-box; }
+        button { background-color: #28a745; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+        button:hover { background-color: #218838; }
+        .video-container { margin-top: 25px; border: 3px solid #3b3b4f; background: #000; border-radius: 5px; min-height: 360px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        img { max-width: 100%; height: auto; display: none; }
+        .placeholder-text { color: #666; font-style: italic; }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Panel de pruebas con YOLO para análisis local</h2>
+        <p>Seleccione los parámetros para el motor de visión artificial</p>
+        
+        <!-- Formulario de Configuración -->
+        <div class = "form-group">
+            <label for="modelo">1. Modelo YOLO</label>
+            <select id="modelo">
+                <option value="yolo11n">YOLO11 Nano (más rápido)</option>
+                <option value="yolo11s">YOLO11 Small (más preciso)</option>
+                <option value="yolov8n">YOLOv8 Nano</option>
+                <option value="yolov8s">YOLOv8 Small</option>
+            </select>
+        </div>
+
+        <div class = "form-group">
+            <label for = "tipo_fuente">2. Tipo de origen de vídeo</label>
+            <select id = "tipo_fuente" onchange="actualizarPlaceholder()">
+                <option value = "youtube">Video de YouTube (URL)</option>
+                <option value = "m3u8">Streaming M3U8 (URL)</option>
+                <option value = "webcam">Cámara Web Local (índice entero)</option>
+                <option value = "local">Archivo de vídeo local (ruta y nombre)</option>
+            </select>
+        </div>
+
+        <div class = "form-group">
+            <label for = "fuente">3. Ubicación del origen de vídeo</label>
+            <input type = "text" id = "fuente" value = "https://www.youtube.com/watch?v=3uwRHtiyMnI">
+        </div>
+
+        <button onclick="conectarStreaming()">🚀 Iniciar procesamiento</button>
+        <button onclick="detenerStreaming()" style="background-color: #b36b73; margin-top: 10px;">🛑 Detener procesamiento</button>
+
+
+        <!-- Contenedor del Video -->
+        <div class  = "video-container">
+            <div id = "placeholder" class="placeholder-text">El flujo de video procesado aparecerá aquí...</div>
+            <img id = "pantalla-streaming" alt="Streaming de YOLO">
+        </div>
+    </div>
+    <script>
+
+    function actualizarPlaceholder() 
+    {
+        const tipo = document.getElementById('tipo_fuente').value;
+        const inputFuente = document.getElementById('fuente');
+        if (tipo === 'youtube') inputFuente.value = "https://www.youtube.com/watch?v=3uwRHtiyMnI";
+        if (tipo === 'webcam') inputFuente.value = "0";
+        if (tipo === 'local') inputFuente.value = "SavedVideo.mp4";
+        if (tipo === 'm3u8') inputFuente.value = "https://live.smartechlatam.online/claro/paseodelarepublica/index.m3u8";
+    }
+
+    function conectarStreaming() 
+    {
+        const modelo = document.getElementById('modelo').value;
+        const tipo_fuente = document.getElementById('tipo_fuente').value;
+        const fuente = document.getElementById('fuente').value;
+
+        const placeholder = document.getElementById('placeholder');
+        const imgStreaming = document.getElementById('pantalla-streaming');
+
+        // Ocultar textos de espera e intercambiar por la imagen
+        placeholder.style.display  = "none";
+        imgStreaming.style.display = "block";
+        
+        imgStreaming.src = `http://127.0.0.1:8000/stream_analitica?tipo_fuente=${tipo_fuente}&fuente=${encodeURIComponent(fuente)}&modelo=${modelo}&t=${new Date().getTime()}`;
+    }
+
+    function detenerStreaming() 
+    {
+        const placeholder = document.getElementById('placeholder');
+        const imgStreaming = document.getElementById('pantalla-streaming');
+
+        // 1. Cortamos el flujo asignando un string vacio al src
+        // Esto obliga al navegador a cerrar la conexion de red inmediatamente.
+        imgStreaming.src = ""; 
+        
+        // 2. Reajustamos la interfaz visual para el usuario
+        imgStreaming.style.display = "none";
+        placeholder.style.display = "block";
+        placeholder.innerText = "Procesamiento detenido por el usuario. Elija otra fuente y/o inicie cuando desee";
+        
+        console.log("[INFO] Flujo de video cancelado localmente.");
+    }
+
+
+</script>
+
+
+</body>
+</html>
