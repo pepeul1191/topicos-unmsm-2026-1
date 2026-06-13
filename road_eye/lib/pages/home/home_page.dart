@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:road_eye/pages/car_detector/car_detector_page.dart';
 import 'package:road_eye/pages/plate_reader/plate_reader_controller.dart';
 import 'package:road_eye/pages/plate_reader/plate_reader_page.dart';
 import 'package:road_eye/pages/wellcome/wellcome_page.dart';
@@ -29,7 +30,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = [
     Center(child: WellcomePage()), // index 0
     Center(child: PlateReaderPage()), // index 1
-    const Center(child: Text('Favoritos')), // index 2
+    const Center(child: CarDetectorPage()), // index 2
   ];
 
   Widget _buildBody() {

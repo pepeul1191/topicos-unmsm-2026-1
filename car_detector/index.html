@@ -85,7 +85,7 @@
         placeholder.style.display  = "none";
         imgStreaming.style.display = "block";
         
-        imgStreaming.src = `http://127.0.0.1:8000/stream_analitica?tipo_fuente=${tipo_fuente}&fuente=${encodeURIComponent(fuente)}&modelo=${modelo}&t=${new Date().getTime()}`;
+        imgStreaming.src = `http://192.168.1.23:8000/stream_analitica?tipo_fuente=${tipo_fuente}&fuente=${encodeURIComponent(fuente)}&modelo=${modelo}&t=${new Date().getTime()}`;
     }
 
     function detenerStreaming() 
