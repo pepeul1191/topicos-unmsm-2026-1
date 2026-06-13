@@ -5,27 +5,37 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:road_eye/configs/constants.dart';
+import 'package:image/image.dart' as img;
 
 class CarDetectorController extends GetxController {
   // Cámara
   CameraController? cameraController;
   final isCameraReady = false.obs;
   
+  // WebSocket
+  WebSocketChannel? webSocketChannel;
+  final isConnected = false.obs;
+  final connectionStatus = '⚪ Desconectado'.obs;
+  
   // Detección
   final vehiclesCount = 0.obs;
   final isDetecting = false.obs;
-  final processedImage = ''.obs;
+  final processedImage = ''.obs; // Base64 de imagen procesada
   final detections = <Map<String, dynamic>>[].obs;
   
   // Configuración
   final selectedModel = 'yolo11n'.obs;
-  final fps = '0 fps'.obs;
-  int frameCount = 0;
-  Timer? fpsTimer;
-  Timer? detectionTimer;
   
+  // Captura de frames
+  Timer? frameTimer;
+  bool _isCapturing = false;
+  int frameCount = 0;
+  final fps = '0 fps'.obs;
+  Timer? fpsTimer;
+  
+  // Modelos disponibles
   final List<Map<String, String>> models = [
     {'value': 'yolo11n', 'label': 'YOLO11 Nano (más rápido)'},
     {'value': 'yolo11s', 'label': 'YOLO11 Small (más preciso)'},
@@ -33,16 +43,22 @@ class CarDetectorController extends GetxController {
     {'value': 'yolov8s', 'label': 'YOLOv8 Small'},
   ];
   
+  // Control de estado
+  bool _isDisposing = false;
+  
   @override
   void onInit() {
     super.onInit();
     _initCamera();
+    _connectWebSocket();
     _startFpsCounter();
   }
   
   @override
   void onClose() {
-    _stopDetection();
+    _isDisposing = true;
+    _disconnectWebSocket();
+    frameTimer?.cancel();
     fpsTimer?.cancel();
     cameraController?.dispose();
     super.onClose();
@@ -63,14 +79,13 @@ class CarDetectorController extends GetxController {
       
       cameraController = CameraController(
         camera,
-        ResolutionPreset.medium,
+        ResolutionPreset.low, // Usar baja resolución para mejor rendimiento
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
       
       await cameraController!.initialize();
       isCameraReady.value = true;
-      _startDetection();
       
       if (kDebugMode) {
         print('✅ Cámara inicializada');
@@ -80,100 +95,159 @@ class CarDetectorController extends GetxController {
     }
   }
   
-  void _startDetection() {
-    detectionTimer?.cancel();
-    detectionTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
-      if (isCameraReady.value && !isDetecting.value) {
-        _captureAndDetect();
+  Future<void> _connectWebSocket() async {
+    if (_isDisposing) return;
+    
+    try {
+      final wsUrl = '${Constants.yoloBaseUrl.replaceFirst('http', 'ws')}/ws/detect';
+      print('🔄 Conectando WebSocket a $wsUrl');
+      
+      webSocketChannel = WebSocketChannel.connect(Uri.parse(wsUrl));
+      
+      webSocketChannel!.stream.listen(
+        (message) {
+          if (!_isDisposing) {
+            _handleWebSocketMessage(message);
+          }
+        },
+        onDone: () {
+          if (!_isDisposing) {
+            print('🔌 WebSocket desconectado');
+            isConnected.value = false;
+            connectionStatus.value = '⚪ Desconectado';
+          }
+        },
+        onError: (error) {
+          if (!_isDisposing) {
+            print('❌ WebSocket error: $error');
+            isConnected.value = false;
+            connectionStatus.value = '❌ Error de conexión';
+          }
+        },
+      );
+      
+      isConnected.value = true;
+      connectionStatus.value = '✅ Conectado';
+      
+      // Enviar configuración inicial
+      _sendConfig();
+      
+      // Iniciar captura de frames
+      _startFrameCapture();
+      
+    } catch (e) {
+      print('❌ Error conectando WebSocket: $e');
+      isConnected.value = false;
+      connectionStatus.value = '❌ Error de conexión';
+    }
+  }
+  
+  void _disconnectWebSocket() {
+    if (webSocketChannel != null) {
+      webSocketChannel!.sink.close();
+      webSocketChannel = null;
+    }
+    isConnected.value = false;
+  }
+  
+  void _sendConfig() {
+    if (webSocketChannel != null && isConnected.value) {
+      webSocketChannel!.sink.add(jsonEncode({
+        'type': 'config',
+        'model': selectedModel.value,
+      }));
+    }
+  }
+  
+  void _startFrameCapture() {
+    frameTimer?.cancel();
+    // Capturar cada 200ms (5 fps)
+    frameTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+      if (isCameraReady.value && isConnected.value && !_isCapturing && !_isDisposing) {
+        _captureAndSendFrame();
       }
     });
   }
   
-  void _stopDetection() {
-    detectionTimer?.cancel();
-    detectionTimer = null;
-  }
-  
-  Future<void> _captureAndDetect() async {
+  Future<void> _captureAndSendFrame() async {
     if (cameraController == null || !cameraController!.value.isInitialized) {
       return;
     }
     
-    isDetecting.value = true;
+    _isCapturing = true;
     
     try {
+      // Capturar imagen
       final XFile image = await cameraController!.takePicture();
       final bytes = await image.readAsBytes();
-      await _sendToServer(bytes);
+      
+      // Comprimir para reducir tamaño
+      final compressedBytes = await _compressImage(bytes);
+      final base64Image = base64Encode(compressedBytes);
+      
+      // Enviar por WebSocket
+      if (webSocketChannel != null && isConnected.value && !_isDisposing) {
+        webSocketChannel!.sink.add(jsonEncode({
+          'type': 'frame',
+          'image': base64Image,
+        }));
+      }
+      
+      // Actualizar contador de frames
       frameCount++;
+      
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error capturando: $e');
+      if (!_isDisposing && kDebugMode) {
+        print('❌ Error capturando frame: $e');
       }
     } finally {
-      isDetecting.value = false;
+      _isCapturing = false;
     }
   }
   
-  // VERSIÓN CORREGIDA - Usar http.post con multipart manual
-  Future<void> _sendToServer(Uint8List imageBytes) async {
+  Future<Uint8List> _compressImage(Uint8List bytes) async {
     try {
-      final uri = Uri.parse('${Constants.yoloBaseUrl}/detect');
+      final image = img.decodeImage(bytes);
+      if (image == null) return bytes;
       
-      // Crear el boundary para multipart
-      final boundary = '----${DateTime.now().millisecondsSinceEpoch}';
+      final resized = img.copyResize(image, width: 320);
+      final compressed = img.encodeJpg(resized, quality: 60);
       
-      // Construir el body manualmente
-      final List<int> body = [];
+      return Uint8List.fromList(compressed);
+    } catch (e) {
+      return bytes;
+    }
+  }
+  
+  void _handleWebSocketMessage(dynamic message) {
+    try {
+      final data = jsonDecode(message);
+      final type = data['type'];
       
-      // Agregar campo model_name
-      body.addAll(_textToBytes('--$boundary\r\n'));
-      body.addAll(_textToBytes('Content-Disposition: form-data; name="model_name"\r\n\r\n'));
-      body.addAll(_textToBytes('${selectedModel.value}\r\n'));
-      
-      // Agregar archivo
-      body.addAll(_textToBytes('--$boundary\r\n'));
-      body.addAll(_textToBytes('Content-Disposition: form-data; name="image"; filename="frame.jpg"\r\n'));
-      body.addAll(_textToBytes('Content-Type: image/jpeg\r\n\r\n'));
-      body.addAll(imageBytes);
-      body.addAll(_textToBytes('\r\n'));
-      
-      // Cerrar boundary
-      body.addAll(_textToBytes('--$boundary--\r\n'));
-      
-      // Enviar request
-      final response = await http.post(
-        uri,
-        headers: {
-          'Content-Type': 'multipart/form-data; boundary=$boundary',
-        },
-        body: body,
-      );
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      if (type == 'connected') {
+        print('✅ ${data['message']}');
+        connectionStatus.value = '✅ Conectado - ${data['message']}';
         
-        if (data['success'] == true) {
-          vehiclesCount.value = data['vehicles_count'] ?? 0;
-          processedImage.value = data['processed_image'] ?? '';
-          detections.value = List<Map<String, dynamic>>.from(data['detections'] ?? []);
-        } else {
-          print('❌ Error en detección: ${data['error']}');
-        }
-      } else {
-        print('❌ Error HTTP: ${response.statusCode}');
-        print('Respuesta: ${response.body}');
+      } else if (type == 'config_ack') {
+        print('✅ ${data['message']}');
+        
+      } else if (type == 'detection') {
+        // Actualizar resultados
+        vehiclesCount.value = data['vehicles_count'] ?? 0;
+        processedImage.value = data['processed_image'] ?? '';
+        detections.value = List<Map<String, dynamic>>.from(data['detections'] ?? []);
+        
+      } else if (type == 'error') {
+        print('❌ Error del servidor: ${data['message']}');
+        connectionStatus.value = '⚠️ Error: ${data['message']}';
+        
+      } else if (type == 'pong') {
+        // Respuesta a ping, ignorar
       }
       
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error enviando al servidor: $e');
-      }
+      print('❌ Error parseando mensaje: $e');
     }
-  }
-  
-  List<int> _textToBytes(String text) {
-    return utf8.encode(text);
   }
   
   void _startFpsCounter() {
@@ -186,10 +260,29 @@ class CarDetectorController extends GetxController {
   
   void updateModel(String value) {
     selectedModel.value = value;
+    // Enviar nueva configuración al servidor
+    if (isConnected.value && webSocketChannel != null) {
+      webSocketChannel!.sink.add(jsonEncode({
+        'type': 'config',
+        'model': value,
+      }));
+    }
   }
   
-  Future<void> restartCamera() async {
-    await cameraController?.dispose();
-    await _initCamera();
+  Future<void> reconnectWebSocket() async {
+    if (_isDisposing) return;
+    
+    print('🔄 Reconectando WebSocket...');
+    connectionStatus.value = '🔄 Reconectando...';
+    
+    _disconnectWebSocket();
+    await Future.delayed(const Duration(milliseconds: 500));
+    await _connectWebSocket();
+  }
+  
+  void clearResults() {
+    processedImage.value = '';
+    vehiclesCount.value = 0;
+    detections.clear();
   }
 }
