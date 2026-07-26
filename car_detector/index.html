@@ -2,112 +2,286 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YOLO Panel de Pruebas Local</title>
+    <title>Panel de Control Avanzado - Monitoreo de Tráfico IA</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #1e1e24; color: #fff; margin: 20px; text-align: center; }
-        .container { max-width: 800px; margin: 0 auto; background: #2a2a35; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .form-group { margin-bottom: 15px; text-align: left; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; color: #a0a0b0; }
-        select, input[type="text"] { width: 100%; padding: 10px; border-radius: 5px; border: none; background: #3b3b4f; color: #fff; box-sizing: border-box; }
-        button { background-color: #28a745; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
-        button:hover { background-color: #218838; }
-        .video-container { margin-top: 25px; border: 3px solid #3b3b4f; background: #000; border-radius: 5px; min-height: 360px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        img { max-width: 100%; height: auto; display: none; }
-        .placeholder-text { color: #666; font-style: italic; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { color: #2c3e50; margin-bottom: 5px; }
+        .control-panel {
+            background: #fff;
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #2980b9; }
+        button.secundario { background-color: #7f8c8d; }
+        button.secundario:hover { background-color: #636e72; }
+        select, input[type="text"] {
+            padding: 8px;
+            border: 1px solid #dcdde1;
+            border-radius: 6px;
+            font-size: 13px;
+            background-color: #fff;
+        }
+        select { min-width: 200px; max-width: 250px; }
+        input[type="text"] { flex: 1; }
+        .instrucciones {
+            color: #7f8c8d;
+            font-size: 13px;
+            text-align: center;
+            border-top: 1px solid #f1f2f6;
+            padding-top: 8px;
+        }
+        .contenedor-video {
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #000;
+            line-height: 0;
+        }
+        #video_stream {
+            cursor: crosshair;
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
-
 <body>
 
-    <div class="container">
-        <h2>Panel de pruebas con YOLO para análisis local</h2>
-        <p>Seleccione los parámetros para el motor de visión artificial</p>
-        
-        <!-- Formulario de Configuración -->
-        <div class = "form-group">
-            <label for="modelo">1. Modelo YOLO</label>
-            <select id="modelo">
-                <option value="yolo11n">YOLO11 Nano (más rápido)</option>
-                <option value="yolo11s">YOLO11 Small (más preciso)</option>
-                <option value="yolov8n">YOLOv8 Nano</option>
-                <option value="yolov8s">YOLOv8 Small</option>
-            </select>
+    <h1>Monitoreo de Tráfico Urbano - Panel Master v2</h1>
+    
+    <div class="control-panel">
+        <!-- SECCIÓN 1: CONTENIDO LOCAL DINÁMICO -->
+        <div class="row">
+            <div class="group">
+                <strong>📹 Videos Locales:</strong>
+                <select id="select_video_local" onchange="cargarDesdeSelect('video_local', 'select_video_local')">
+                    <option value="">Cargando videos...</option>
+                </select>
+                <button class="secundario" onclick="buscarEnDisco('video_local')">🔍 Buscar Video...</button>
+            </div>
+
+            <div class="group">
+                <!-- CORREGIDO: Sintaxis limpia sin la palabra descuidada 'Dim:' -->
+                <strong>🖼️ Fotos Locales:</strong>
+                <select id="select_foto_local" onchange="cargarDesdeSelect('foto_local', 'select_foto_local')">
+                    <option value="">Cargando fotos...</option>
+                </select>
+                <button class="secundario" onclick="buscarEnDisco('foto_local')">🔍 Buscar Foto...</button>
+            </div>
+            
+            <button onclick="cambiarFuente('webcam', '0')">💻 Activar Webcam</button>
         </div>
 
-        <div class = "form-group">
-            <label for = "tipo_fuente">2. Tipo de origen de vídeo</label>
-            <select id = "tipo_fuente" onchange="actualizarPlaceholder()">
-                <option value = "youtube">Video de YouTube (URL)</option>
-                <option value = "m3u8">Streaming M3U8 (URL)</option>
-                <option value = "webcam">Cámara Web Local (índice entero)</option>
-                <option value = "local">Archivo de vídeo local (ruta y nombre)</option>
-            </select>
+        <!-- SECCIÓN 2: REPOSITORIOS ONLINE PREESTABLECIDOS -->
+        <div class="row">
+            <div class="group">
+                <strong>Cámaras YouTube:</strong>
+                <select id="select_youtube" onchange="cargarDesdeSelect('youtube', 'select_youtube')">
+                    <option value="">-- Selecciona un País/Ciudad --</option>
+                    <option value="https://www.youtube.com/watch?v=dfVK7ld38Ys">Tokio, Japón (En Vivo)</option>
+                    <option value="https://www.youtube.com/watch?v=1H0iTzv2jiQ">Michigan, USA (En Vivo)</option>
+                    <option value="https://www.youtube.com/watch?v=6dp-bvQ7RWo">Tokio, Japón (En Vivo 2)</option>
+                    <option value="https://www.youtube.com/watch?v=1EiC9bvVGnk">Wyoming, USA (En Vivo)</option>
+                    <option value="https://www.youtube.com/watch?v=9SLt3AT0rXk">Kentucky, USA (En Vivo)</option>
+                    <option value="https://www.youtube.com/watch?v=Jy1Y9f8NEY0">Países Bajos (En Vivo)</option>
+                    <option value="https://www.youtube.com/watch?v=MNn9qKG2UFI&t=7s">Pista Offline</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <strong>Flujos Streaming (.m3u8):</strong>
+                <select id="select_m3u8" onchange="cargarDesdeSelect('m3u8', 'select_m3u8')">
+                    <option value="">-- Selecciona un Stream --</option>
+                    <option value="https://live.smartechlatam.online/claro/paseodelarepublica/index.m3u8">Lima, Perú - Paseo de la República</option>
+                    <option value="https://live.smartechlatam.online/claro/angamos/index.m3u8">Lima, Perú - Av. Angamos</option>
+                    <option value="https://live.smartechlatam.online/claro/gallinazos/index.m3u8">Lima, Perú - Gallinazos</option>
+                    <option value="https://live.smartechlatam.online/claro/panamericana/index.m3u8">Lima, Perú - Panamericana</option>
+                    <option value="https://live.smartechlatam.online/claro/derby/index.m3u8">Lima, Perú - Derby</option>
+                    <option value="https://live.smartechlatam.online/claro/prolongaciontacna/index.m3u8">Lima, Perú - Prolongación Tacna</option>
+                    <option value="https://live.smartechlatam.online/claro/domo_quebrada_seca/index.m3u8">Lima, Perú - Panamericana Sur, Punta Hermosa</option>
+                    <option value="https://live.smartechlatam.online/claro/brasilconjavierprado/index.m3u8">Lima, Perú - Av. Brasil con Javier Prado, Magdalena</option>
+                    <option value="https://live.smartechlatam.online/claro/lamarina/index.m3u8">Lima, Perú - Av. La Marina, Pueblo Libre</option>
+                    <option value="https://live.smartechlatam.online/claro/domo_punta_negra/index.m3u8">Lima, Perú - Domo de Punta Negra</option>
+                    <option value="https://live.smartechlatam.online/claro/escuela_pnp/index.m3u8">Lima, Perú - Paradero Escuela PNP, Puente Piedra</option>
+                    <option value="https://live.smartechlatam.online/claro/plaza_villa/index.m3u8">Lima, Perú - Peaje Plaza Villa, VES</option>
+                    <option value="https://live.smartechlatam.online/claro/javierprado/index.m3u8">Lima, Perú - Av. Javier Prado, Santiago de Surco</option>
+                    <option value="https://live.smartechlatam.online/claro/republicapanama/index.m3u8">Lima, Perú - Av. República de Panamá, Surquillo</option>
+                           
+                
+                </select>
+                
+            </div>
         </div>
 
-        <div class = "form-group">
-            <label for = "fuente">3. Ubicación del origen de vídeo</label>
-            <input type = "text" id = "fuente" value = "https://www.youtube.com/watch?v=3uwRHtiyMnI">
+        <!-- SECCIÓN 3: ENTRADA MANUAL PERSONALIZADA -->
+        <div class="row">
+            <strong>Entrada Manual (URL):</strong>
+            <input type="text" id="url_input" placeholder="Pega cualquier enlace nuevo de YouTube o .m3u8 aquí...">
+            <button onclick="procesarUrlManual()">🚀 Cargar URL Externa</button>
         </div>
 
-        <button onclick="conectarStreaming()">🚀 Iniciar procesamiento</button>
-        <button onclick="detenerStreaming()" style="background-color: #b36b73; margin-top: 10px;">🛑 Detener procesamiento</button>
-
-
-        <!-- Contenedor del Video -->
-        <div class  = "video-container">
-            <div id = "placeholder" class="placeholder-text">El flujo de video procesado aparecerá aquí...</div>
-            <img id = "pantalla-streaming" alt="Streaming de YOLO">
+        <div class="instrucciones">
+            <strong>Controles Interactivos:</strong> 2 clics izquierdos en la pista inclinan la línea divisoria | 1 clic derecho desplaza el cajetín blanco.
         </div>
     </div>
+
+    <div class="contenedor-video">
+        <img id="video_stream" src="/video_feed" alt="Cargando transmisión IA..." oncontextmenu="return false;">
+    </div>
+
     <script>
+        const videoElement = document.getElementById('video_stream');
 
-    function actualizarPlaceholder() 
-    {
-        const tipo = document.getElementById('tipo_fuente').value;
-        const inputFuente = document.getElementById('fuente');
-        if (tipo === 'youtube') inputFuente.value = "https://www.youtube.com/watch?v=3uwRHtiyMnI";
-        if (tipo === 'webcam') inputFuente.value = "0";
-        if (tipo === 'local') inputFuente.value = "SavedVideo.mp4";
-        if (tipo === 'm3u8') inputFuente.value = "https://live.smartechlatam.online/claro/paseodelarepublica/index.m3u8";
-    }
+        // Al cargar la página web, consulta al servidor para rellenar los selectores locales automáticamente
+        document.addEventListener("DOMContentLoaded", function() {
+            fetch('/listar_archivos_locales')
+            .then(res => res.json())
+            .then(data => {
+                actualizarSelector("select_video_local", data.videos, "-- Elige un Video Local --");
+                actualizarSelector("select_foto_local", data.fotos, "-- Elige una Foto Local --");
+            })
+            .catch(err => console.error("Error listando archivos locales:", err));
+        });
 
-    function conectarStreaming() 
-    {
-        const modelo = document.getElementById('modelo').value;
-        const tipo_fuente = document.getElementById('tipo_fuente').value;
-        const fuente = document.getElementById('fuente').value;
+        function actualizarSelector(idSelect, lista, textoDefault) {
+            const select = document.getElementById(idSelect);
+            select.innerHTML = `<option value="">${textoDefault}</option>`;
+            lista.forEach(archivo => {
+                select.innerHTML += `<option value="sources_offline/${archivo}">${archivo}</option>`;
+            });
+        }
 
-        const placeholder = document.getElementById('placeholder');
-        const imgStreaming = document.getElementById('pantalla-streaming');
+        // Envía la orden de actualización al Servidor de Python
+        function cambiarFuente(tipo, destino) {
+            if (!destino && tipo !== "webcam") return;
+            
+            fetch('/cambiar_fuente', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo_fuente: tipo, url_fuente: destino })
+            })
+            .then(res => res.json())
+            .then(datos => {
+                if (datos.status === "success") {
+                    console.log("Transmisión cambiada con éxito a:", destino);
+                    videoElement.src = "/video_feed?t=" + new Date().getTime();
+                }
+            })
+            .catch(err => console.error("Error cambiando fuente:", err));
+        }
 
-        // Ocultar textos de espera e intercambiar por la imagen
-        placeholder.style.display  = "none";
-        imgStreaming.style.display = "block";
-        
-        imgStreaming.src = `http://192.168.1.23:8000/stream_analitica?tipo_fuente=${tipo_fuente}&fuente=${encodeURIComponent(fuente)}&modelo=${modelo}&t=${new Date().getTime()}`;
-    }
+        // Pide al servidor abrir la ventana de Windows (Tkinter) para buscar archivos libres en el disco
+        function buscarEnDisco(tipo) {
+            fetch('/buscar_en_disco', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo: tipo })
+            })
+            .then(res => res.json())
+            .then(datos => {
+                if (datos.status === "success" && datos.ruta) {
+                    limpiarTodosLosSelects();
+                    cambiarFuente(tipo, datos.ruta);
+                }
+            })
+            .catch(err => console.error("Error explorando disco:", err));
+        }
 
-    function detenerStreaming() 
-    {
-        const placeholder = document.getElementById('placeholder');
-        const imgStreaming = document.getElementById('pantalla-streaming');
+        function cargarDesdeSelect(tipo, idSelect) {
+            const elSelect = document.getElementById(idSelect);
+            const urlSeleccionada = elSelect.value;
+            if (urlSeleccionada) {
+                limpiarTodosLosSelectsExcepto(idSelect);
+                cambiarFuente(tipo, urlSeleccionada);
+            }
+        }
 
-        // 1. Cortamos el flujo asignando un string vacio al src
-        // Esto obliga al navegador a cerrar la conexion de red inmediatamente.
-        imgStreaming.src = ""; 
-        
-        // 2. Reajustamos la interfaz visual para el usuario
-        imgStreaming.style.display = "none";
-        placeholder.style.display = "block";
-        placeholder.innerText = "Procesamiento detenido por el usuario. Elija otra fuente y/o inicie cuando desee";
-        
-        console.log("[INFO] Flujo de video cancelado localmente.");
-    }
+        function procesarUrlManual() {
+            const url = document.getElementById('url_input').value.trim();
+            if (!url) {
+                alert("Por favor ingresa una URL válida.");
+                return;
+            }
+            let tipo = "m3u8";
+            if (url.includes("youtube.com") || url.includes("youtu.be")) tipo = "youtube";
+            
+            limpiarTodosLosSelects();
+            cambiarFuente(tipo, url);
+        }
 
+        function limpiarTodosLosSelectsExcepto(idIgnorado) {
+            const ids = ['select_video_local', 'select_foto_local', 'select_youtube', 'select_m3u8'];
+            ids.forEach(id => {
+                if (id !== idIgnorado) document.getElementById(id).value = "";
+            });
+        }
 
-</script>
+        function limpiarTodosLosSelects() {
+            limpiarTodosLosSelectsExcepto("");
+            document.getElementById('url_input').value = "";
+        }
 
+        // Captura interactiva de coordenadas en el navegador web
+        videoElement.addEventListener('mousedown', function(evento) {
+            evento.preventDefault();
+            const rect = videoElement.getBoundingClientRect();
+            const escalaX = videoElement.naturalWidth / rect.width;
+            const escalaY = videoElement.naturalHeight / rect.height;
 
+            const clickX = Math.round((evento.clientX - rect.left) * escalaX);
+            // --- CONTINUACIÓN EXACTA DEL SCRIPT DE INTERACCIÓN ---
+            const clickY = Math.round((evento.clientY - rect.top) * escalaY);
+
+            let tipoClick = "";
+            if (evento.button === 0) tipoClick = "izquierdo";
+            else if (evento.button === 2) tipoClick = "derecho";
+
+            if (tipoClick !== "") {
+                fetch('/interaccion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tipo: tipoClick, x: clickX, y: clickY })
+                })
+                .then(res => res.json())
+                .catch(err => console.error("Error transmitiendo clics:", err));
+            }
+        });
+    </script>
 </body>
 </html>

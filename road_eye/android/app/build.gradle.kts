@@ -22,7 +22,7 @@ android {
     defaultConfig {
         applicationId = "com.example.road_eye"
         // Valores explícitos
-        minSdk = 23  // Mínimo recomendado para cámara
+        minSdk = flutter.minSdkVersion  // Mínimo recomendado para cámara
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName

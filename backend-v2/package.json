@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "rails": "rails s -b 192.168.1.23 -p 3000",
+    "rails": "rails s -b 192.168.1.27 -p 3000",
     "dev": "npm run rails & npm run svelte",
     "svelte": "rollup -c -w",
     "dev:access": "bash -c 'cd /home/pepe/Documents/go/access-v2 && npm run dev:gin 2>/dev/null'",
