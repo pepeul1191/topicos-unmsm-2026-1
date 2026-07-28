@@ -1,0 +1,47 @@
+50 epochs completed in 4.234 hours.
+Optimizer stripped from /home/pepe/Documents/ULima/2025-2/Estructuras Discretas de Computación/Semana 15/grafos/runs/detect/yolo11_placas/exp_nano-5/weights/last.pt, 5.5MB
+Optimizer stripped from /home/pepe/Documents/ULima/2025-2/Estructuras Discretas de Computación/Semana 15/grafos/runs/detect/yolo11_placas/exp_nano-5/weights/best.pt, 5.5MB
+
+Validating /home/pepe/Documents/ULima/2025-2/Estructuras Discretas de Computación/Semana 15/grafos/runs/detect/yolo11_placas/exp_nano-5/weights/best.pt...
+Ultralytics 8.4.108 🚀 Python-3.12.3 torch-2.5.1+cu121 CUDA:0 (NVIDIA T1000, 3904MiB)
+YOLO11n summary (fused): 101 layers, 2,589,367 parameters, 0 gradients, 6.4 GFLOPs
+                 Class     Images  Instances      Box(P          R      mAP50  mAP50-95): 100% ━━━━━━━━━━━━ 232/232 3.8it/s 1:01
+                   all       7400       7400      0.998          1      0.995      0.976
+                     A        200        200      0.999          1      0.995      0.949
+                     B        200        200      0.998          1      0.995      0.994
+                     C        200        200      0.998          1      0.995      0.989
+                     D        200        200      0.998          1      0.995      0.992
+                     E        200        200      0.998          1      0.995      0.991
+                     F        200        200      0.998          1      0.995      0.985
+                     G        200        200      0.998          1      0.995      0.988
+                     H        200        200      0.998          1      0.995      0.989
+                     I        200        200      0.998          1      0.995      0.976
+                     J        200        200      0.998          1      0.995      0.983
+                     K        200        200      0.998          1      0.995      0.988
+                     L        200        200      0.998          1      0.995      0.961
+                     M        200        200      0.998          1      0.995      0.988
+                     N        200        200      0.998          1      0.995      0.982
+                     O        200        200      0.998          1      0.995      0.991
+                     P        200        200      0.998          1      0.995      0.978
+                     Q        200        200      0.998          1      0.995       0.97
+                     R        200        200      0.998          1      0.995      0.987
+                     S        200        200      0.998          1      0.995      0.992
+                     T        200        200      0.998          1      0.995       0.96
+                     U        200        200      0.998          1      0.995      0.983
+                     V        200        200      0.998          1      0.995      0.964
+                     W        200        200      0.998          1      0.995      0.982
+                     X        200        200      0.998          1      0.995      0.976
+                     Y        200        200      0.998          1      0.995      0.979
+                     Z        200        200      0.998          1      0.995      0.985
+                     0        200        200      0.998          1      0.995      0.986
+                     1        200        200      0.998          1      0.995      0.969
+                     2        200        200      0.998          1      0.995      0.981
+                     3        200        200      0.998          1      0.995       0.99
+                     4        200        200      0.998          1      0.995      0.945
+                     5        200        200      0.998          1      0.995      0.995
+                     6        200        200      0.998          1      0.995      0.984
+                     7        200        200      0.999          1      0.995      0.974
+                     8        200        200      0.998          1      0.995      0.989
+                     9        200        200      0.998          1      0.995      0.988
+                     -        200        200      0.995      0.996      0.995      0.802
+Speed: 0.3ms preprocess, 7.0ms inference, 0.0ms loss, 0.2ms postprocess per image
