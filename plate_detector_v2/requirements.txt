@@ -3,3 +3,4 @@ numpy
 cairosvg
 pillow
 fiftyone
+ultralytics

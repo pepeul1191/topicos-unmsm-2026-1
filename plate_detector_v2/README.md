@@ -46,3 +46,7 @@ python3 -m http.server 8000
 ### Ver dataset
 
     $ python3 visualizar.py
+
+### Listar
+
+    $ find . \(     -path "./scripts/dataset/images" -o     -path "./scripts/dataset/labels" -o     -path "./venv" \) -prune -print -o -print

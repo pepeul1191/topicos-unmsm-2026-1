@@ -1,5 +1,5 @@
-# dataset.yaml
-path: ./  # Ruta a la carpeta contenedora
+# scripts/dataset/dataset.yaml
+path: scripts/dataset  # Ruta a la carpeta contenedora
 train: images    # Busca imágenes en dataset/images
 val: images      # Reutiliza la misma carpeta para validación
 
