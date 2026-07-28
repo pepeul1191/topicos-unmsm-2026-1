@@ -93,3 +93,5 @@ tmp
 
 
 tests/db
+scripts/dataset/images
+scripts/dataset/labels

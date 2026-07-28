@@ -37,3 +37,12 @@ Este es un proyecto base que integra un backend en **Flask** con un frontend en 
     PASSWORD=123
 
 python3 -m http.server 8000
+
+### Generar dataset
+
+    # cd scripts
+    $ python3 letras.py
+
+### Ver dataset
+
+    $ python3 visualizar.py
