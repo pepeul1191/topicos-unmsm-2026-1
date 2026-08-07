@@ -1,0 +1,142 @@
+@startuml
+title Diagrama de Secuencia - Servidor de Detección de Placas con Corrección OCR
+
+' Actores
+actor "Cliente WebSocket" as Client
+participant "PlateOnlyServer" as Server
+participant "YOLO" as YOLO
+participant "EasyOCR" as OCR
+participant "FrameProcessor" as Processor
+participant "PlateValidator" as Validator
+
+== Conexión Inicial ==
+Client -> Server: WebSocket Connection
+activate Server
+Server -> Server: handle_client()
+Server -> Client: Conexión establecida
+
+== Procesamiento de Frame ==
+Client -> Server: {type: 'frame', image: base64}
+activate Server
+Server -> Server: decode_frame()
+note right: Decodifica imagen base64 a OpenCV
+
+Server -> Server: process_frame(frame)
+activate Processor
+
+Processor -> Processor: resize_for_speed()
+note right: Redimensiona para optimizar velocidad
+
+alt Frame procesable (cada N frames)
+    Processor -> OCR: extract_plate_text(img)
+    activate OCR
+    
+    OCR -> OCR: resize_for_speed()
+    OCR -> OCR: Convertir a escala de grises
+    OCR -> OCR: Aplicar CLAHE y Otsu
+    OCR -> OCR: readtext()
+    
+    alt OCR exitoso
+        OCR -> OCR: filter_large_text()
+        note right: Filtra texto grande (altura > 25px)
+        
+        OCR -> Processor: plate_text, ocr_bbox, ocr_conf
+        deactivate OCR
+        
+        Processor -> Validator: validate_fronto_parallel(ocr_bbox)
+        activate Validator
+        Validator -> Validator: calculate_bbox_angle()
+        Validator -> Validator: calculate_angle_from_corners()
+        Validator -> Validator: smooth_angle()
+        Validator -> Processor: is_valid, angle, reason
+        deactivate Validator
+        
+        alt Ángulo válido (<= 20°)
+            Processor -> Validator: validate_plate_format(plate_text)
+            activate Validator
+            
+            Validator -> Validator: Limpiar caracteres especiales
+            Validator -> Validator: Separar partes (ABC-123)
+            Validator -> Validator: Validar formato
+            
+            alt Formato válido
+                Validator -> Processor: True, formatted_plate, format_type
+                deactivate Validator
+                
+                Processor -> Validator: is_plate_stable(formatted_plate)
+                activate Validator
+                Validator -> Validator: Verificar historial (últimos 3)
+                Validator -> Processor: True/False
+                deactivate Validator
+                
+                alt Placa estable
+                    Processor -> Processor: Actualizar last_plate, last_bbox
+                    Processor -> Processor: Incrementar contadores
+                    note right: • valid_detections++<br/>• format_stats[formato]++
+                    
+                    Processor -> Server: PLACA VÁLIDA DETECTADA
+                else Placa inestable
+                    Processor -> Processor: Esperando confirmación
+                end
+            else Formato inválido
+                Validator -> Processor: False, errors
+                deactivate Validator
+                Processor -> Processor: rejected_by_format++
+                note right: Aplica corrección automática<br/>4→A, 3→E, 1→I/L, 0→O, etc.
+            end
+        else Ángulo inválido
+            Processor -> Processor: rejected_by_angle++
+        end
+    else OCR falla
+        OCR -> Processor: None, None, None
+        deactivate OCR
+        
+        Processor -> YOLO: detect_with_yolo(img)
+        activate YOLO
+        YOLO -> YOLO: resize_for_speed(320px)
+        YOLO -> YOLO: model(conf=0.25)
+        YOLO -> Processor: yolo_box, yolo_conf
+        deactivate YOLO
+        
+        alt YOLO detecta placa
+            Processor -> Validator: validate_fronto_parallel(yolo_box)
+            activate Validator
+            Validator -> Validator: validate_fronto_parallel()
+            Validator -> Processor: is_valid, angle, reason
+            deactivate Validator
+            
+            alt Ángulo válido
+                Processor -> Processor: Actualizar last_bbox
+                note right: Solo actualiza ubicación<br/>sin placa detectada
+            end
+        end
+    end
+else Frame no procesable
+    Processor -> Processor: Usar último resultado válido
+end
+
+== Dibujado y Codificación ==
+Processor -> Processor: draw_stats(annotated)
+note right: Dibuja estadísticas<br/>Total, Válidas, Rechazadas, Correcciones
+
+Processor -> Server: annotated_img
+deactivate Processor
+
+Server -> Server: encode_frame(annotated, quality=50)
+note right: Codifica a base64
+
+Server -> Client: {type: 'detection', plate, plate_format, stats, ...}
+deactivate Server
+
+== Mantenimiento de Conexión ==
+Client -> Server: {type: 'ping'}
+activate Server
+Server -> Client: {type: 'pong', timestamp}
+deactivate Server
+
+== Desconexión ==
+Client -> Server: Conexión cerrada
+Server -> Server: Logger.info("Cliente desconectado")
+deactivate Server
+
+@enduml

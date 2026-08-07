@@ -93,3 +93,6 @@ tmp
 
 
 tests/db
+
+synthetic_plates/images
+synthetic_plates/labels

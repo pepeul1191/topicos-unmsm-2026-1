@@ -4,3 +4,4 @@ cairosvg
 pillow
 fiftyone
 ultralytics
+websockets>=9.1

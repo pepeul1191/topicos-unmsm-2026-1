@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prueba de Detección YOLO - Cajas</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 { margin-bottom: 5px; color: #4CAF50; }
+    p { margin-top: 0; color: #aaa; }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      max-width: 640px;
+      width: 100%;
+    }
+
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 3px solid #333;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      background: #000;
+    }
+
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Canvas para dibujar los cuadros sobre el video */
+    #overlayCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: bold;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10;
+    }
+    .status-connected { color: #4CAF50; }
+    .status-disconnected { color: #F44336; }
+
+    .result-box {
+      width: 100%;
+      background: #1e1e1e;
+      border-radius: 12px;
+      padding: 15px;
+      box-sizing: border-box;
+      text-align: center;
+      border: 1px solid #333;
+    }
+
+    .plate-display {
+      font-size: 38px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      color: #FFD700;
+      background: #000;
+      padding: 10px 20px;
+      border-radius: 8px;
+      display: inline-block;
+      margin: 10px 0;
+      border: 2px solid #555;
+      min-width: 200px;
+    }
+
+    .metrics {
+      display: flex;
+      justify-content: space-around;
+      font-size: 14px;
+      color: #888;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>🚘 Detección de Placas y Caracteres</h1>
+    <p>Visualización de Bounding Boxes en tiempo real</p>
+
+    <div class="video-wrapper">
+      <video id="webcam" autoplay playsinline muted></video>
+      <canvas id="overlayCanvas"></canvas>
+      <div id="connectionStatus" class="badge status-disconnected">⚪ Desconectado</div>
+    </div>
+
+    <!-- Canvas oculto para capturar frames -->
+    <canvas id="captureCanvas" style="display: none;"></canvas>
+
+    <div class="result-box">
+      <div>Texto Reconstruido:</div>
+      <div id="plateText" class="plate-display">———</div>
+      <div class="metrics">
+        <span>Tiempo Procesamiento: <strong id="processTime" style="color:#fff;">0 ms</strong></span>
+        <span>Confianza Promedio: <strong id="confidence" style="color:#fff;">0%</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById('webcam');
+    const captureCanvas = document.getElementById('captureCanvas');
+    const overlayCanvas = document.getElementById('overlayCanvas');
+    const captureCtx = captureCanvas.getContext('2d');
+    const overlayCtx = overlayCanvas.getContext('2d');
+
+    const plateText = document.getElementById('plateText');
+    const processTime = document.getElementById('processTime');
+    const confidence = document.getElementById('confidence');
+    const connectionStatus = document.getElementById('connectionStatus');
+
+    let ws = null;
+    const WS_URL = 'ws://localhost:8765';
+    const FRAME_INTERVAL = 200; // 5 FPS
+
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480, facingMode: 'environment' }
+        });
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+          captureCanvas.width = video.videoWidth;
+          captureCanvas.height = video.videoHeight;
+          initWebSocket();
+        };
+      } catch (err) {
+        alert('❌ Error al acceder a la webcam: ' + err.message);
+      }
+    }
+
+    function initWebSocket() {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        connectionStatus.textContent = '🟢 Conectado';
+        connectionStatus.className = 'badge status-connected';
+        startSendingFrames();
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'detection') {
+          // 1. Mostrar Texto
+          if (data.plate) {
+            plateText.textContent = data.plate;
+            plateText.style.color = '#00FF66';
+          } else if (data.raw_text) {
+            plateText.textContent = data.raw_text;
+            plateText.style.color = '#FFCC00';
+          } else {
+            plateText.textContent = '———';
+            plateText.style.color = '#FFD700';
+          }
+
+          processTime.textContent = (data.process_time || 0) + ' ms';
+          confidence.textContent = Math.round((data.ocr_conf || 0) * 100) + '%';
+
+          // 2. Dibujar Rectángulos sobre el video
+          if (data.frame_size) {
+            drawBoxes(data.boxes, data.frame_size[0], data.frame_size[1]);
+          }
+        }
+      };
+
+      ws.onclose = () => {
+        connectionStatus.textContent = '🔴 Desconectado';
+        connectionStatus.className = 'badge status-disconnected';
+        clearCanvas();
+        setTimeout(initWebSocket, 2000);
+      };
+    }
+
+    function drawBoxes(boxes, frameWidth, frameHeight) {
+      // Ajustar resolución del canvas superpuesto al tamaño visible del video
+      overlayCanvas.width = video.clientWidth;
+      overlayCanvas.height = video.clientHeight;
+
+      clearCanvas();
+
+      if (!boxes || boxes.length === 0) return;
+
+      // Calcular factor de escala entre el frame procesado por Python y el tamaño visual
+      const scaleX = overlayCanvas.width / frameWidth;
+      const scaleY = overlayCanvas.height / frameHeight;
+
+      boxes.forEach(item => {
+        const [x1, y1, x2, y2] = item.box;
+        const scaledX = x1 * scaleX;
+        const scaledY = y1 * scaleY;
+        const scaledW = (x2 - x1) * scaleX;
+        const scaledH = (y2 - y1) * scaleY;
+
+        // Dibujar borde verde
+        overlayCtx.strokeStyle = '#00FF66';
+        overlayCtx.lineWidth = 2;
+        overlayCtx.strokeRect(scaledX, scaledY, scaledW, scaledH);
+
+        // Fondo de la etiqueta
+        overlayCtx.fillStyle = 'rgba(0, 255, 102, 0.8)';
+        overlayCtx.fillRect(scaledX, Math.max(0, scaledY - 18), Math.max(scaledW, 18), 18);
+
+        // Texto de la etiqueta
+        overlayCtx.fillStyle = '#000000';
+        overlayCtx.font = 'bold 12px sans-serif';
+        overlayCtx.fillText(item.label, scaledX + 2, Math.max(12, scaledY - 4));
+      });
+    }
+
+    function clearCanvas() {
+      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    }
+
+    function startSendingFrames() {
+      setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+          const imageData = captureCanvas.toDataURL('image/jpeg', 0.6);
+          
+          ws.send(JSON.stringify({
+            type: 'frame',
+            image: imageData
+          }));
+        }
+      }, FRAME_INTERVAL);
+    }
+
+    initCamera();
+  </script>
+</body>
+</html>

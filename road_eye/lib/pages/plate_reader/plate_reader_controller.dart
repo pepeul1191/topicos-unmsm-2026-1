@@ -10,10 +10,9 @@ import 'package:road_eye/configs/generic_response.dart';
 import 'package:road_eye/models/car_details.dart';
 import 'package:road_eye/services/car_service.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:image/image.dart' as img;
 
 class PlateReaderController extends GetxController {
-  CarService _carService = CarService();
+  final CarService _carService = CarService();
 
   // Cámara
   CameraController? cameraController;
@@ -34,18 +33,18 @@ class PlateReaderController extends GetxController {
   Timer? fpsTimer;
   Timer? frameTimer;
 
-  // Detalle del Carros
+  // Detalle del Carro
   final Rxn<CarDetails> carDetails = Rxn<CarDetails>();
-  var errorMessage = ''.obs; // Variable reactiva para el error
+  var errorMessage = ''.obs;
   
   // Control de estado
   bool _isDisposing = false;
-  bool _isCapturing = false; // Previene capturas simultáneas
-  String _lastProcessedPlate = ''; // Para evitar procesar la misma placa múltiples veces
+  bool _isCapturing = false;
+  String _lastProcessedPlate = '';
   
   // Configuración
   final String wsUrl = Constants.wsUrl;
-  final int frameIntervalMs = 200; // Cambiado de 100 a 200ms (5 fps)
+  final int frameIntervalMs = 150; // YOLO en server.py procesa rápido (ideal ~6-7 FPS)
   
   @override
   void onInit() {
@@ -54,10 +53,9 @@ class PlateReaderController extends GetxController {
     _connectWebSocket();
     _startFpsCounter();
     
-    // Listener para cuando se obtienen los detalles del auto
+    // Escuchar cuando el auto es encontrado
     ever(carDetails, (CarDetails? details) {
       if (details != null) {
-        // Si se obtuvieron los detalles del auto, cerrar WebSocket
         _closeWebSocketAndCamera();
       }
     });
@@ -76,15 +74,16 @@ class PlateReaderController extends GetxController {
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
-        status.value = '❌ No hay cámara';
+        status.value = '❌ No hay cámara disponible';
         return;
       }
       
       final camera = cameras.first;
       
+      // Ajustamos la resolución a LOW o MEDIUM (suficiente para YOLO)
       cameraController = CameraController(
         camera,
-        ResolutionPreset.low,
+        ResolutionPreset.low, 
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -97,154 +96,68 @@ class PlateReaderController extends GetxController {
         print('✅ Cámara inicializada correctamente');
       }
     } catch (e) {
-      status.value = '❌ Error cámara';
+      status.value = '❌ Error de cámara';
       if (kDebugMode) {
-        //print('❌ Error inicializando cámara: $e');
+        print('❌ Error inicializando cámara: $e');
       }
     }
   }
   
   void _startFrameCapture() {
     frameTimer?.cancel();
+    // Subimos el intervalo a 300ms para darle tiempo al hardware de la cámara a cerrar la foto anterior
     frameTimer = Timer.periodic(
-      Duration(milliseconds: frameIntervalMs),
+      const Duration(milliseconds: 300),
       (_) => _captureAndSendFrame(),
     );
   }
   
   Future<void> _captureAndSendFrame() async {
-    // No capturar si está cerrando o ya hay una captura en curso
     if (_isDisposing || _isCapturing) return;
-    
+
     if (cameraController == null || 
         !cameraController!.value.isInitialized || 
         !isConnected.value) {
       return;
     }
-    
+
     _isCapturing = true;
-    
+
     try {
       final startTime = DateTime.now();
-      
-      // Capturar imagen
+
+      // 1. Tomar foto
       final XFile image = await cameraController!.takePicture();
+      
+      // 2. Leer bytes
       final bytes = await image.readAsBytes();
-      
-      // Comprimir imagen
-      final compressedBytes = await _compressImage(bytes);
-      final base64Image = base64Encode(compressedBytes);
-      
-      // Enviar por WebSocket
+      final base64Image = base64Encode(bytes);
+
+      // 3. Enviar al WebSocket
       if (webSocketChannel != null && !_isDisposing) {
         webSocketChannel!.sink.add(jsonEncode({
           'type': 'frame',
           'image': base64Image,
         }));
       }
-      
-      // Actualizar latencia
+
       final endTime = DateTime.now();
-      final processingTime = endTime.difference(startTime).inMilliseconds;
-      latency.value = '$processingTime ms';
-      
-      // Actualizar contador de frames para FPS
+      latency.value = '${endTime.difference(startTime).inMilliseconds} ms';
       frameCount++;
-      
+
     } catch (e) {
-      if (!_isDisposing && !e.toString().contains('Previous capture has not returned yet')) {
+      // Silenciar error habitual de toma de captura concurrente
+      if (!e.toString().contains('Previous capture has not returned yet')) {
         if (kDebugMode) {
-          print('❌ Error capturando frame: $e');
+          print('⚠️ Error capturando frame: $e');
         }
       }
     } finally {
       _isCapturing = false;
     }
   }
-  
-  Future<Uint8List> _compressImage(Uint8List bytes) async {
-    try {
-      img.Image? original = img.decodeImage(bytes);
-      if (original == null) return bytes;
-      
-      final resized = img.copyResize(original, width: 320);
-      final compressed = img.encodeJpg(resized, quality: 60);
-      
-      return Uint8List.fromList(compressed);
-    } catch (e) {
-      return bytes;
-    }
-  }
 
-  // ============= MÉTODO PARA CERRAR WEBSOCKET Y CÁMARA =============
-  
-  Future<void> _closeWebSocketAndCamera() async {
-    if (_isDisposing) return;
-    
-    if (kDebugMode) {
-      print('🔒 Cerrando WebSocket y cámara - Auto detectado correctamente');
-    }
-    
-    status.value = '✅ Auto detectado';
-    _isDisposing = true;
-    
-    // Detener timers de captura
-    frameTimer?.cancel();
-    frameTimer = null;
-    
-    fpsTimer?.cancel();
-    fpsTimer = null;
-    
-    // Cerrar WebSocket
-    if (webSocketChannel != null) {
-      try {
-        await webSocketChannel!.sink.close();
-        if (kDebugMode) {
-          print('✅ WebSocket cerrado');
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('❌ Error cerrando WebSocket: $e');
-        }
-      }
-      webSocketChannel = null;
-    }
-    
-    isConnected.value = false;
-    
-    // Nota: No disposeamos la cámara para poder ver el último frame
-    // Solo cerramos el WebSocket
-    
-    if (kDebugMode) {
-      print('✅ Recursos cerrados exitosamente');
-    }
-  }
-
-  // ============= RAILS ==============
-
-  void _searchCarDetails(String numeroPlaca) async {
-    // Evitar procesar la misma placa múltiples veces
-    if (_lastProcessedPlate == numeroPlaca) {
-      return;
-    }
-    
-    _lastProcessedPlate = numeroPlaca;
-    errorMessage.value = '';
-  
-    GenericResponse<CarDetails> response = await _carService.fetchByPlate(numeroPlaca);
-    
-    if (response.success && response.data != null) {
-      carDetails.value = response.data;
-      // El ever() listener se encargará de cerrar el WebSocket automáticamente
-    } else {
-      carDetails.value = null;
-      errorMessage.value = response.message;
-      // Resetear para permitir reintentar con otra placa
-      _lastProcessedPlate = '';
-    }
-  }
-  
-  // ============= MÉTODOS DE WEBSOCKET =============
+  // ============= MÉTODOS DE WEBSOCKET Y RESPUESTA =============
   
   void _connectWebSocket() {
     if (_isDisposing) return;
@@ -263,20 +176,12 @@ class PlateReaderController extends GetxController {
           }
         },
         onDone: () {
-          if (kDebugMode && !_isDisposing) {
-            print('🔌 WebSocket desconectado');
-          }
-          
           if (!_isDisposing) {
             status.value = '⚪ Desconectado';
             isConnected.value = false;
           }
         },
         onError: (error) {
-          if (kDebugMode && !_isDisposing) {
-            //print('❌ WebSocket error: $error');
-          }
-          
           if (!_isDisposing) {
             status.value = '⚠️ Error de conexión';
             isConnected.value = false;
@@ -287,14 +192,7 @@ class PlateReaderController extends GetxController {
       status.value = '✅ Conectado';
       isConnected.value = true;
       
-      if (kDebugMode) {
-        print('✅ WebSocket conectado a $wsUrl');
-      }
     } catch (e) {
-      if (kDebugMode && !_isDisposing) {
-        //print('❌ Error conectando WebSocket: $e');
-      }
-      
       if (!_isDisposing) {
         status.value = '❌ Error de conexión';
         isConnected.value = false;
@@ -306,37 +204,80 @@ class PlateReaderController extends GetxController {
     try {
       final data = jsonDecode(message);
 
-      if (kDebugMode) {
-        print('📨 Mensaje recibido: $data');
-      }
-      
+      // server.py responde con 'type': 'detection'
       if (data['type'] == 'detection') {
         if (data['plate'] != null && data['plate'].toString().isNotEmpty) {
-          final detectedPlate = data['plate'];
+          final String detectedPlate = data['plate'];
           plateNumber.value = detectedPlate;
           
-          // Solo buscar si aún no hemos procesado esta placa y el WebSocket está activo
+          // Prevenir peticiones repetidas a la base de datos para la misma placa
           if (_lastProcessedPlate != detectedPlate && !_isDisposing) {
             _searchCarDetails(detectedPlate);
           }
         } else if (plateNumber.value != '———') {
-          plateNumber.value = '🔍 Buscando...';
+          plateNumber.value = '🔍 Buscando placa...';
         }
         
+        // Muestra de métricas recibidas del servidor YOLO
         if (data['process_time'] != null && kDebugMode) {
-          final serverLatency = data['process_time'];
-          print('Server processing time: ${serverLatency}ms');
+          print('⏱️ Server YOLO time: ${data['process_time']} ms | Conf: ${data['ocr_conf']}');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        //print('❌ Error parseando mensaje: $e');
+        print('❌ Error procesando mensaje del WebSocket: $e');
       }
     }
   }
+
+  // ============= BÚSQUEDA Y SERVICIOS =============
+
+  void _searchCarDetails(String numeroPlaca) async {
+    if (_lastProcessedPlate == numeroPlaca) return;
+    
+    _lastProcessedPlate = numeroPlaca;
+    errorMessage.value = '';
   
-  // ============= MÉTRICAS =============
+    GenericResponse<CarDetails> response = await _carService.fetchByPlate(numeroPlaca);
+    
+    if (response.success && response.data != null) {
+      carDetails.value = response.data;
+    } else {
+      carDetails.value = null;
+      errorMessage.value = response.message;
+      
+      // Dar un pequeño margen (2 segundos) antes de intentar buscar la misma placa nuevamente
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!_isDisposing) {
+          _lastProcessedPlate = '';
+        }
+      });
+    }
+  }
+
+  // ============= MÉTODOS DE CIERRE Y RESETEO =============
   
+  Future<void> _closeWebSocketAndCamera() async {
+    if (_isDisposing) return;
+    
+    status.value = '✅ Placa encontrada';
+    _isDisposing = true;
+    
+    frameTimer?.cancel();
+    frameTimer = null;
+    fpsTimer?.cancel();
+    fpsTimer = null;
+    
+    if (webSocketChannel != null) {
+      try {
+        await webSocketChannel!.sink.close();
+      } catch (_) {}
+      webSocketChannel = null;
+    }
+    
+    isConnected.value = false;
+  }
+
   void _startFpsCounter() {
     fpsTimer?.cancel();
     fpsTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -346,108 +287,61 @@ class PlateReaderController extends GetxController {
       }
     });
   }
-  
-  // ============= MÉTODO PARA RECONECTAR MANUALMENTE =============
-  
+
   Future<void> reconnectWebSocket() async {
     if (_isDisposing) return;
     
-    if (kDebugMode) {
-      print('🔄 Reconectando WebSocket manualmente...');
-    }
-    
     status.value = '🔄 Reconectando...';
-    
-    // Resetear estado
     _lastProcessedPlate = '';
     carDetails.value = null;
     errorMessage.value = '';
     plateNumber.value = '———';
     
-    // Cerrar conexión existente
     if (webSocketChannel != null) {
       try {
         await webSocketChannel!.sink.close();
-      } catch (e) {
-        if (kDebugMode) {
-          //print('❌ Error cerrando WebSocket: $e');
-        }
-      }
+      } catch (_) {}
       webSocketChannel = null;
     }
     
     isConnected.value = false;
     _isDisposing = false;
     
-    // Pequeña pausa antes de reconectar
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    // Intentar nueva conexión
+    await Future.delayed(const Duration(milliseconds: 300));
     _connectWebSocket();
   }
   
-  // Método para reiniciar el escaneo (después de ver los detalles)
   Future<void> resetAndRestart() async {
-    if (kDebugMode) {
-      print('🔄 Reiniciando escaneo...');
-    }
-    
-    // Resetear estados
     _lastProcessedPlate = '';
     carDetails.value = null;
     errorMessage.value = '';
     plateNumber.value = '———';
     _isDisposing = false;
     
-    // Reconectar WebSocket
+    _startFrameCapture();
     await reconnectWebSocket();
   }
-  
-  // ============= UTILIDADES =============
-  
+
   void _disposeResources() {
-    if (kDebugMode) {
-      print('🔌 Cerrando recursos del lector de placas...');
-    }
-    
-    // Detener timers
     frameTimer?.cancel();
     frameTimer = null;
-    
     fpsTimer?.cancel();
     fpsTimer = null;
     
-    // Cerrar WebSocket
     if (webSocketChannel != null) {
       try {
         webSocketChannel!.sink.close();
-        if (kDebugMode) {
-          print('✅ WebSocket cerrado');
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          //print('❌ Error cerrando WebSocket: $e');
-        }
-      }
+      } catch (_) {}
       webSocketChannel = null;
     }
     
-    // Dispose de la cámara
     if (cameraController != null) {
       try {
         cameraController!.dispose();
-        if (kDebugMode) {
-          print('✅ Cámara liberada');
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          //print('❌ Error liberando cámara: $e');
-        }
-      }
+      } catch (_) {}
       cameraController = null;
     }
     
-    // Resetear estados
     isCameraReady.value = false;
     isConnected.value = false;
     status.value = '⚪ Desconectado';
@@ -456,20 +350,6 @@ class PlateReaderController extends GetxController {
     latency.value = '0 ms';
     frameCount = 0;
     _isCapturing = false;
-    
-    if (kDebugMode) {
-      print('✅ Recursos cerrados correctamente');
-    }
-  }
-  
-  Future<void> restartCamera() async {
-    if (_isDisposing) return;
-    
-    status.value = '🔄 Reiniciando...';
-    _disposeResources();
-    _isDisposing = false;
-    await _initCamera();
-    _connectWebSocket();
   }
   
   Future<void> closeResources() async {

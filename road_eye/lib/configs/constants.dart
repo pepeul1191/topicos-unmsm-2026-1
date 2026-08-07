@@ -6,7 +6,7 @@ class Constants {
   Constants._();
 
   // Constantes de Endpoints
-  static const String wsUrl = 'ws://192.168.1.27:8765';
-  static const String baseUrl = 'http://192.168.1.27:3000';
-  static const String yoloBaseUrl = 'http://192.168.1.27:8000'; 
+  static const String wsUrl = 'ws://192.168.1.23:8765';
+  static const String baseUrl = 'http://192.168.1.23:3000';
+  static const String yoloBaseUrl = 'http://192.168.1.23:8000'; 
 }

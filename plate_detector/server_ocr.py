@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PlateOnlyServer:
-    def __init__(self, yolo_model_path='models/best_upeu_yolo12_100ep.pt'):
+    def __init__(self, yolo_model_path='models/best.pt'):
         logger.info("🎯 Inicializando detector enfocado en placas...")
         
         self.yolo_model = YOLO(yolo_model_path)
@@ -274,9 +274,9 @@ class PlateOnlyServer:
         except websockets.exceptions.ConnectionClosed:
             logger.info("Cliente desconectado")
 async def main():
-    server = PlateOnlyServer(yolo_model_path='models/best_upeu_yolo12_100ep.pt')
+    server = PlateOnlyServer(yolo_model_path='models/best.pt')
     
-    async with websockets.serve(server.handle_client, "192.168.1.27", 8765):
+    async with websockets.serve(server.handle_client, "192.168.1.23", 8765):
         logger.info("=" * 50)
         logger.info("🎯 SERVIDOR CORREGIDO - CON CONFIANZA")
         logger.info("=" * 50)

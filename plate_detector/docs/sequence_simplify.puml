@@ -1,0 +1,75 @@
+@startuml
+title Diagrama de Secuencia Simplificado - Detección de Placas
+
+actor "Cliente" as Client
+participant "Servidor" as Server
+participant "OCR" as OCR
+participant "YOLO" as YOLO
+participant "Validador" as Validator
+
+== Inicio ==
+Client -> Server: Conectar WebSocket
+Server -> Client: Conexión OK
+
+== Loop Principal ==
+loop Cada frame
+    Client -> Server: Enviar frame (base64)
+    activate Server
+    
+    Server -> OCR: Intentar leer texto
+    activate OCR
+    
+    alt OCR detecta texto
+        OCR -> Server: Texto + BBox + Confianza
+        deactivate OCR
+        
+        Server -> Validator: Validar ángulo (≤20°)
+        activate Validator
+        Validator -> Server: Ángulo OK
+        deactivate Validator
+        
+        Server -> Validator: Validar formato peruano
+        activate Validator
+        Validator -> Server: Formato OK
+        deactivate Validator
+        
+        Server -> Server: Verificar estabilidad (historial)
+        
+        alt Placa estable
+            Server -> Server: ✅ ACTUALIZAR PLACA
+            Server -> Client: Placa detectada
+        else Placa inestable
+            Server -> Server: ⏳ Esperar confirmación
+            Server -> Client: Estado anterior
+        end
+        
+    else OCR falla
+        deactivate OCR
+        
+        Server -> YOLO: Localizar placa (fallback)
+        activate YOLO
+        YOLO -> Server: BBox + Confianza
+        deactivate YOLO
+        
+        alt YOLO detecta ubicación
+            Server -> Validator: Validar ángulo
+            activate Validator
+            Validator -> Server: Ángulo OK
+            deactivate Validator
+            
+            Server -> Server: Actualizar solo ubicación
+            Server -> Client: Estado sin placa
+        else Sin detección
+            Server -> Server: Mantener estado
+            Server -> Client: Sin detección
+        end
+    end
+    
+    deactivate Server
+end
+
+== Fin ==
+Client -> Server: Desconectar
+Server -> Client: Conexión cerrada
+
+@enduml
